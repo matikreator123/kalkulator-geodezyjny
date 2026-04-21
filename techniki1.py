@@ -398,51 +398,51 @@ with tabs[4]:
 
 
 
-
 with tabs[5]:
     st.header("6. Obsługa portu szeregowego RS232")
     
-    # Próbujemy zaimportować serial (działa tylko lokalnie po pip install pyserial)
+    st.subheader("⚙️ Zaawansowana konfiguracja połączenia")
+    
+    # Pierwsza linia ustawień
+    c1, c2, c3 = st.columns(3)
+    
+    # Porty (z obsługą braku biblioteki/urządzeń)
+    ports = ["Brak fizycznych portów (Tryb demonstracyjny)"]
     try:
-        import serial
         import serial.tools.list_ports
-        serial_available = True
-    except ImportError:
-        serial_available = False
+        available = [p.device for p in serial.tools.list_ports.comports()]
+        if available: ports = available
+    except: pass
+    
+    sel_port = c1.selectbox("Port COM", ports)
+    baud = c2.selectbox("Baudrate (Prędkość)", [1200, 2400, 4800, 9600, 19200, 38400, 115200], index=3)
+    parity = c3.selectbox("Parzystość (Parity)", ["None", "Even", "Odd", "Mark", "Space"])
 
-    # --- LISTA PORTÓW ---
-    st.subheader("⚙️ Konfiguracja połączenia")
-    available_ports = []
-    if serial_available:
-        ports = serial.tools.list_ports.comports()
-        available_ports = [p.device for p in ports]
-    
-    c1, c2, c3, c4 = st.columns(4)
-    port = c1.selectbox("Port COM", available_ports if available_ports else ["Brak portów"])
-    baud = c2.selectbox("Baudrate", [1200, 2400, 4800, 9600, 19200, 115200], index=3)
-    
+    # Druga linia ustawień
+    c4, c5, c6 = st.columns(3)
+    databits = c4.selectbox("Bity danych (Data bits)", [5, 6, 7, 8], index=3)
+    stopbits = c5.selectbox("Bity stopu (Stop bits)", [1, 1.5, 2], index=0)
+    flow = c6.selectbox("Kontrola przepływu (Flow control)", ["None", "XON/XOFF", "RTS/CTS", "DSR/DTR"])
+
+    st.divider()
+
     # --- LOGIKA TERMINALA ---
-    if 'terminal_log' not in st.session_state:
-        st.session_state.terminal_log = ""
-
-    if st.button("▶️ Połącz i czytaj dane"):
-        if not serial_available:
-            st.error("Biblioteka 'pyserial' nie jest zainstalowana. Zainstaluj ją przez 'pip install pyserial'.")
-        elif not available_ports:
-            st.error("Nie wykryto żadnego urządzenia podpiętego do portu COM.")
-        else:
-            try:
-                # Otwarcie portu (tylko lokalnie!)
-                with serial.Serial(port, baud, timeout=1) as ser:
-                    st.success(f"Połączono z {port}!")
-                    line = ser.readline().decode('utf-16', errors='ignore') # Tachimetry często sypią UTF-16
-                    if line:
-                        st.session_state.terminal_log += f"[RECV] {line}\n"
-            except Exception as e:
-                st.error(f"Błąd połączenia: {e}")
-
-    st.text_area("Konsola (Termite Style)", value=st.session_state.terminal_log, height=300)
+    if 'log' not in st.session_state: st.session_state.log = ""
     
-    if st.button("Wyczyść logi"):
-        st.session_state.terminal_log = ""
+    col_a, col_b = st.columns([1, 4])
+    if col_a.button("▶️ Połącz i czytaj"):
+        # Symulacja dla wersji chmurowej
+        st.session_state.log += f"[INFO] Otwarto {sel_port}: {baud}, {databits}, {parity[0]}, {stopbits}\n"
+        st.session_state.log += "[RECV] Pomiar nr 1: Hz=120.4500g V=98.1200g d=150.234m\n"
+        
+    if col_b.button("🗑️ Wyczyść logi"):
+        st.session_state.log = ""
         st.rerun()
+
+    st.text_area("Konsola (Termite Style)", value=st.session_state.log, height=250)
+    
+    cmd = st.text_input("Wyślij komendę do instrumentu:")
+    if st.button("Wyślij ➡️"):
+        if cmd:
+            st.session_state.log += f"[SENT] {cmd}\n"
+            st.rerun()
