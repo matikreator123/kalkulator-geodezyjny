@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 
 # --- KONFIGURACJA ---
-st.set_page_config(page_title="Projekt ETP GI", layout="wide")
+st.set_page_config(page_title="Kalkulator geodezyjny", layout="wide")
 
 # --- ZAKŁADKI ---
 tabs = st.tabs([
