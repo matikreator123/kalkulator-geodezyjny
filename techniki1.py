@@ -401,7 +401,7 @@ with tabs[4]:
 with tabs[5]:
     st.header("6. Obsługa portu szeregowego RS232")
     
-    st.subheader("⚙️ Zaawansowana konfiguracja połączenia")
+    st.subheader("⚙️ Konfiguracja połączenia")
     
     # Pierwsza linia ustawień
     c1, c2, c3 = st.columns(3)
