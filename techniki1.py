@@ -206,13 +206,13 @@ with tabs[2]:
     st.header("3. Współczynnik Ng0")
     st.write("Wykonanie wykresu zależności współczynnika od długości fali oraz generowanie tabeli co 10 nm. [cite: 2]")
 
-    # 1. Obliczenia (400 - 1600 nm, co 10 nm) [cite: 2]
+    # 1. Obliczenia (zakres 400-1600 nm, co 10 nm)
     lambdy = np.arange(400, 1610, 10)
     ng0_list = []
 
     for l_nm in lambdy:
         L = l_nm / 1000.0  # nm -> mikrometry
-        # Wzór Barrella i Searsa
+        # Ng0 = 287.604 + 1.6288/L^2 + 0.0136/L^4
         val = 287.604 + (1.6288 / (L**2)) + (0.0136 / (L**4))
         ng0_list.append(val)
 
@@ -222,17 +222,20 @@ with tabs[2]:
         "Współczynnik Ng0": ng0_list
     })
 
-    # 3. Wykres (Wersja odporna na błędy skali)
+    # 3. Wykres przy użyciu Plotly (wymuszamy widoczność linii)
     st.subheader("Wykres zależności Ng0 od długości fali [cite: 2]")
     
-    # Ustawiamy index, aby oś X była poprawna
-    chart_data = df_ng0.set_index("Długość fali [nm]")
+    fig = px.line(df_ng0, x="Długość fali [nm]", y="Współczynnik Ng0", 
+                  title="Krzywa dyspersji Ng0",
+                  labels={"Współczynnik Ng0": "Ng0 [-]"})
     
-    # Wyświetlamy wykres z wymuszonym skalowaniem osi Y do zakresu danych
-    st.line_chart(chart_data, y="Współczynnik Ng0")
+    # Wymuszamy zakres osi Y, aby linia nie leżała na osi
+    fig.update_yaxes(range=[min(ng0_list) - 5, max(ng0_list) + 5])
+    
+    st.plotly_chart(fig, use_container_width=True)
 
     # 4. Tabela (Zgodnie z wytycznymi co 10 nm) [cite: 2]
-    st.subheader("Tabela wartości (co 10 nm) [cite: 2]")
+    st.subheader("Tabela wartości co 10 nm [cite: 2]")
     st.dataframe(df_ng0, use_container_width=True)
 
 
