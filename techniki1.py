@@ -351,15 +351,56 @@ with tabs[3]:
 
 # --- ZAKŁADKA 5: ŁUK A CIĘCIWA ---
 with tabs[4]:
-    st.header("Różnica łuk-cięciwa")
-    R = 6371000 # m
-    odleglosci = np.arange(1, 101, 1)
-    # Roznica w mm: (s - 2R sin(s/2R)) * 1000
-    roznica = [((s*1000) - (2*R * math.sin((s*1000)/(2*R)))) * 1000 for s in odleglosci]
+    st.header("5. Obliczenie różnicy między łukiem a cięciwą")
+    st.markdown("""
+    Zakładka oblicza różnicę między długością łuku ($s$) a długością cięciwy ($d$) na powierzchni Ziemi.
+    Wyniki prezentowane są w milimetrach dla dystansów od 1 do 100 km.
+    """)
+
+    # 1. Definiowanie parametrów
+    R = 6371.0  # Średni promień Ziemi w km
+    odleglosci_km = np.arange(1, 101, 1)  # Zakres 1-100 km co 1 km 
+
+    # 2. Obliczenia
+    # Wzór: różnica = s - d 
+    # d = 2 * R * sin(s / (2 * R))
+    # Przybliżony wzór szeregu Taylora: (s^3) / (24 * R^2)
     
-    df_arc = pd.DataFrame({"Odległość [km]": odleglosci, "Różnica [mm]": roznica})
-    st.line_chart(df_arc.set_index("Odległość [km]"))
-    st.dataframe(df_arc)
+    wyniki_mm = []
+    for s in odleglosci_km:
+        # s i R są w km, wynik d_km również w km
+        d_km = 2 * R * math.sin(s / (2 * R))
+        roznica_km = s - d_km
+        # Konwersja na mm (1 km = 1 000 000 mm) 
+        wyniki_mm.append(round(roznica_km * 1000000, 2))
+
+    # 3. Przygotowanie danych do tabeli i wykresu
+    df_luk = pd.DataFrame({
+        "Odległość [km]": odleglosci_km,
+        "Różnica [mm]": wyniki_mm
+    })
+
+    # 4. Wyświetlanie wykresu 
+    st.subheader("Wykres zależności różnicy od odległości")
+    st.line_chart(df_luk.set_index("Odległość [km]"))
+
+    # 5. Wyświetlanie tabeli 
+    st.subheader("Tabela wyników co 1 km")
+    st.dataframe(df_luk, use_container_width=True, height=500)
+
+    # Dodatkowy kalkulator dla dowolnej wartości
+    st.divider()
+    s_user = st.slider("Wybierz odległość [km]", 1, 100, 10)
+    diff_user = ((s_user**3) / (24 * R**2)) * 1000000
+    st.info(f"Dla odległości **{s_user} km**, różnica łuk-cięciwa wynosi ok. **{diff_user:.2f} mm**")
+
+
+
+
+
+
+
+
 
 
 
