@@ -204,43 +204,36 @@ with tabs[1]:
 
 with tabs[2]:
     st.header("3. Współczynnik Ng0")
-    st.write("Wykonanie wykresu zależności współczynnika od długości fali oraz generowanie tabeli co 10 nm.")
+    st.write("Wykonanie wykresu zależności współczynnika od długości fali oraz generowanie tabeli co 10 nm. [cite: 2]")
 
-    # 1. Obliczenia (400 - 1600 nm, co 10 nm)
+    # 1. Obliczenia (400 - 1600 nm, co 10 nm) [cite: 2]
     lambdy = np.arange(400, 1610, 10)
     ng0_list = []
 
     for l_nm in lambdy:
-        # Wzór Barrella i Searsa (L w mikrometrach)
-        L = l_nm / 1000.0
-        # Ng0 = 287.604 + 1.6288/L^2 + 0.0136/L^4
+        L = l_nm / 1000.0  # nm -> mikrometry
+        # Wzór Barrella i Searsa
         val = 287.604 + (1.6288 / (L**2)) + (0.0136 / (L**4))
         ng0_list.append(val)
 
-    # 2. Przygotowanie danych do wykresu i tabeli
+    # 2. Przygotowanie danych
     df_ng0 = pd.DataFrame({
         "Długość fali [nm]": lambdy,
         "Współczynnik Ng0": ng0_list
     })
 
-    # 3. Wykres (Poprawiony)
-    st.subheader("Wykres zależności Ng0 od długości fali")
-    # Używamy st.area_chart lub st.line_chart, ale z ograniczoną skalą osi Y dla widoczności
-    # Żeby wykres nie był płaską linią, ustawimy go tak, by pokazywał różnice
-    st.line_chart(df_ng0.set_index("Długość fali [nm]"), use_container_width=True)
+    # 3. Wykres (Wersja odporna na błędy skali)
+    st.subheader("Wykres zależności Ng0 od długości fali [cite: 2]")
     
+    # Ustawiamy index, aby oś X była poprawna
+    chart_data = df_ng0.set_index("Długość fali [nm]")
     
-    # 4. Tabela (Zgodnie z wytycznymi co 10 nm)
-    st.subheader("Tabela wartości (co 10 nm)") 
-    st.dataframe(df_ng0.style.format({"Współczynnik Ng0": "{:.4f}"}), use_container_width=True)
+    # Wyświetlamy wykres z wymuszonym skalowaniem osi Y do zakresu danych
+    st.line_chart(chart_data, y="Współczynnik Ng0")
 
-    # Suwak do sprawdzenia konkretnej wartości
-    st.divider()
-    f_check = st.slider("Wybierz długość fali do sprawdzenia [nm]", 400, 1600, 633)
-    L_c = f_check / 1000.0
-    res_c = 287.604 + (1.6288 / (L_c**2)) + (0.0136 / (L_c**4))
-    st.info(f"Dla fali **{f_check} nm** Ng0 wynosi: **{res_c:.4f}**")
-
+    # 4. Tabela (Zgodnie z wytycznymi co 10 nm) [cite: 2]
+    st.subheader("Tabela wartości (co 10 nm) [cite: 2]")
+    st.dataframe(df_ng0, use_container_width=True)
 
 
 
