@@ -1,4 +1,5 @@
 import streamlit as st
+import plotly.express as px
 import math
 import statistics
 import pandas as pd
@@ -200,43 +201,40 @@ with tabs[1]:
 
 
 
-
-
 with tabs[2]:
-    st.header("3. Współczynnik Ng0")
-    st.write("Wykonanie wykresu zależności współczynnika od długości fali oraz generowanie tabeli co 10 nm. [cite: 2]")
+    st.header("3. Obliczenie Ng0 dla długości fali")
+    st.write("Wykonanie wykresu zależności współczynników od długości fali oraz tabela co 10 nm.")
 
-    # 1. Obliczenia (zakres 400-1600 nm, co 10 nm)
-    lambdy = np.arange(400, 1610, 10)
-    ng0_list = []
+    # --- CZĘŚĆ 1: KALKULATOR ---
+    st.subheader("Kalkulator Ng0")
+    f_user = st.number_input("Wpisz długość fali [nm]:", value=633.0, step=1.0)
+    L_u = f_user / 1000.0
+    ng0_u = 287.604 + (1.6288 / (L_u**2)) + (0.0136 / (L_u**4))
+    st.info(f"Dla fali **{f_user} nm** współczynnik Ng0 wynosi: **{ng0_u:.4f}**")
 
-    for l_nm in lambdy:
-        L = l_nm / 1000.0  # nm -> mikrometry
-        # Ng0 = 287.604 + 1.6288/L^2 + 0.0136/L^4
-        val = 287.604 + (1.6288 / (L**2)) + (0.0136 / (L**4))
-        ng0_list.append(val)
+    # --- CZĘŚĆ 2: OBLICZENIA ZBIORCZE (400-1600 nm) ---
+    lambdy = np.arange(400, 1610, 10) [cite: 2]
+    ng0_list = [287.604 + (1.6288 / ((l/1000.0)**2)) + (0.0136 / ((l/1000.0)**4)) for l in lambdy]
 
-    # 2. Przygotowanie danych
     df_ng0 = pd.DataFrame({
         "Długość fali [nm]": lambdy,
         "Współczynnik Ng0": ng0_list
     })
 
-    # 3. Wykres przy użyciu Plotly (wymuszamy widoczność linii)
-    st.subheader("Wykres zależności Ng0 od długości fali [cite: 2]")
+    # --- CZĘŚĆ 3: WYKRES (PLOTLY - żeby był widoczny) ---
+    st.subheader("Wykres zależności Ng0 od długości fali")
     
     fig = px.line(df_ng0, x="Długość fali [nm]", y="Współczynnik Ng0", 
-                  title="Krzywa dyspersji Ng0",
                   labels={"Współczynnik Ng0": "Ng0 [-]"})
     
-    # Wymuszamy zakres osi Y, aby linia nie leżała na osi
-    fig.update_yaxes(range=[min(ng0_list) - 5, max(ng0_list) + 5])
+    # Automatyczne dopasowanie osi Y do zakresu danych, żeby linia nie była płaska
+    fig.update_yaxes(autorange=True, fixedrange=False)
     
     st.plotly_chart(fig, use_container_width=True)
 
-    # 4. Tabela (Zgodnie z wytycznymi co 10 nm) [cite: 2]
-    st.subheader("Tabela wartości co 10 nm [cite: 2]")
-    st.dataframe(df_ng0, use_container_width=True)
+    # --- CZĘŚĆ 4: TABELA ---
+    st.subheader("Wygenerowana tabela co 10 nm")
+    st.dataframe(df_ng0, use_container_width=True, height=400)
 
 
 
