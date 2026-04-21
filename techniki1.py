@@ -204,7 +204,7 @@ with tabs[1]:
 
 with tabs[2]:
     st.header("3. Współczynnik Ng0")
-    st.write("Wykonanie wykresu zależności współczynnika od długości fali oraz generowanie tabeli co 10 nm.") [cite: 2]
+    st.write("Wykonanie wykresu zależności współczynnika od długości fali oraz generowanie tabeli co 10 nm.")
 
     # 1. Obliczenia (400 - 1600 nm, co 10 nm)
     lambdy = np.arange(400, 1610, 10)
