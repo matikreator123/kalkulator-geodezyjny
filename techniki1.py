@@ -17,43 +17,70 @@ tabs = st.tabs([
     "6. RS232"
 ])
 
+
+
+
+
 # --- ZAKŁADKA 1: KOLIMACJA ---
 with tabs[0]:
-    st.header("Obliczanie Kolimacji")
-    st.info("Dane importowane z tabeli poniżej (zgodnie z wytycznymi)")
+    st.header("1. Obliczenie Kolimacji")
+    
+    # Sekcja A: Import i statystyka
+    st.subheader("Import danych i statystyka serii")
+    st.write("Wpisz odczyty w gradach [g]. Użyj kropki jako separatora.")
     
     col_data = st.data_editor([
         {"KI": 101.4598, "KII": 301.4586},
         {"KI": 101.4596, "KII": 301.4588},
         {"KI": 101.4599, "KII": 301.4594}
-    ], num_rows="dynamic", key="kol_tab")
+    ], num_rows="dynamic", key="kol_editor_final")
 
-    if col_data:
-        # Filtrowanie pustych wierszy i obliczenia
-        deltas = []
-        for d in col_data:
-            if d.get('KI') is not None and d.get('KII') is not None:
-                delta = ((abs(d['KII'] - d['KI']) - 200) / 2) * 10000
-                deltas.append(delta)
-        
-        if deltas:
-            c_sr = statistics.mean(deltas)
-            mc = statistics.stdev(deltas) / math.sqrt(len(deltas)) if len(deltas) > 1 else 0
-            
-            st.metric("Kolimacja średnia (c)", f"{c_sr:.2f} cc")
-            st.metric("Błąd kolimacji (mc)", f"± {mc:.2f} cc")
+    # Obliczenia statystyczne
+    deltas = []
+    for d in col_data:
+        if d.get('KI') and d.get('KII'):
+            # delta = (KII - KI - 200g)/2 -> zamiana na cc (*10000)
+            diff = d['KII'] - d['KI']
+            if diff < 0: diff += 400
+            val = ((diff - 200) / 2) * 10000
+            deltas.append(val)
 
-            st.divider()
-            st.subheader("Poprawiony odczyt koła poziomego")
-            c_input = st.number_input("Odczyt Hz [g]", value=100.0, step=0.0001, format="%.4f")
-            z_input = st.number_input("Odczyt V (z) [g]", value=100.0, step=0.0001, format="%.4f", key="z_kol")
-            
-            z_rad = (z_input * math.pi) / 200
-            if math.sin(z_rad) != 0:
-                hz_popr = c_input - (c_sr / 10000) / math.sin(z_rad)
-                st.write(f"**Poprawiony odczyt Hz:** {hz_popr:.4f} g")
-            else:
-                st.error("Błąd: sin(z) = 0")
+    if deltas:
+        c_sr = statistics.mean(deltas)
+        # Błąd średni kwadratowy pojedynczego pomiaru i błąd średniej
+        if len(deltas) > 1:
+            v = [x - c_sr for x in deltas]
+            suma_vv = sum(i*i for i in v)
+            m_c = math.sqrt(suma_vv / (len(deltas) - 1)) # błąd pojedynczego
+            m_c_sr = m_c / math.sqrt(len(deltas))       # błąd średniej
+        else:
+            m_c_sr = 0
+
+        c1, c2 = st.columns(2)
+        c1.metric("Kolimacja średnia [cc]", f"{c_sr:.2f}")
+        c2.metric("Błąd kolimacji [cc]", f"± {m_c_sr:.2f}")
+
+    st.divider()
+
+    # Sekcja B: Poprawiony odczyt (zgodnie z wytycznymi)
+    st.subheader("Kalkulator poprawionego odczytu")
+    col_hz, col_v = st.columns(2)
+    hz_raw = col_hz.number_input("Odczyt Hz [g]", value=0.0, format="%.4f")
+    v_raw = col_v.number_input("Odczyt pionowy V [g]", value=100.0, format="%.4f")
+
+    # Obliczenie poprawki: Hz_popr = Hz - c/sin(z)
+    z_rad = (v_raw * math.pi) / 200
+    if math.sin(z_rad) != 0:
+        poprawka_g = (c_sr / 10000) / math.sin(z_rad)
+        hz_poprawiony = hz_raw - poprawka_g
+        st.success(f"Poprawiony odczyt Hz: **{hz_poprawiony:.4f} g**")
+    else:
+        st.error("Błąd: Odczyt pionowy bliski 0 lub 200!")
+
+
+
+
+
 
 # --- ZAKŁADKA 2: INKLINACJA ---
 with tabs[1]:
@@ -87,6 +114,12 @@ with tabs[1]:
             st.metric("Inklinacja średnia (i)", f"{i_sr:.2f} cc")
             st.metric("Błąd inklinacji (mi)", f"± {mi:.2f} cc")
 
+
+
+
+
+
+
 # --- ZAKŁADKA 3: Ng0 ---
 with tabs[2]:
     st.header("Współczynnik Ng0")
@@ -97,6 +130,10 @@ with tabs[2]:
     df_ng0 = pd.DataFrame({"Długość fali [nm]": fale, "Ng0": ng0_values})
     st.line_chart(df_ng0.set_index("Długość fali [nm]"))
     st.dataframe(df_ng0)
+
+
+
+
 
 # --- ZAKŁADKA 4: POPRAWKA ATMOSFERYCZNA ---
 with tabs[3]:
@@ -118,6 +155,10 @@ with tabs[3]:
     if file_atm:
         st.write("Plik wczytany poprawnie (obliczenia w trakcie implementacji...)")
 
+
+
+
+
 # --- ZAKŁADKA 5: ŁUK A CIĘCIWA ---
 with tabs[4]:
     st.header("Różnica łuk-cięciwa")
@@ -129,6 +170,9 @@ with tabs[4]:
     df_arc = pd.DataFrame({"Odległość [km]": odleglosci, "Różnica [mm]": roznica})
     st.line_chart(df_arc.set_index("Odległość [km]"))
     st.dataframe(df_arc)
+
+
+
 
 # --- ZAKŁADKA 6: RS232 ---
 with tabs[5]:
