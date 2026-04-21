@@ -96,3 +96,6 @@ try:
 except Exception as e:
     st.error(f"Wystąpił błąd: {e}")
     st.info("Sprawdź czy plik 'pomiar.txt' ma poprawny format (dwie liczby w linii).")
+    st.download_button("Pobierz raport jako TXT", 
+                   data=f"Wynik: {sr} cc, Blad: {blad} cc", 
+                   file_name="wyniki_geodezja.txt")
