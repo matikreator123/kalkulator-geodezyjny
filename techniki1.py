@@ -399,7 +399,62 @@ with tabs[4]:
 
 
 
-# --- ZAKŁADKA 6: RS232 ---
 with tabs[5]:
-    st.header("Obsługa portu RS232")
-    st.write("Status: Oczekiwanie na połączenie szeregowe...")
+    st.header("6. Obsługa portu szeregowego RS232")
+    st.markdown("""
+    Ta zakładka służy do komunikacji z tachimetrem. 
+    Działa na zasadzie terminala (podobnie jak program **Termite**).
+    """)
+
+    # --- KONFIGURACJA POŁĄCZENIA ---
+    st.subheader("⚙️ Konfiguracja połączenia")
+    c1, c2, c3, c4 = st.columns(4)
+    
+    port = c1.selectbox("Port COM", ["COM1", "COM2", "COM3", "COM4", "/dev/ttyUSB0"])
+    baud = c2.selectbox("Baudrate (Prędkość)", [1200, 2400, 4800, 9600, 19200, 38400, 115200], index=3)
+    parity = c3.selectbox("Parzystość", ["None", "Even", "Odd"])
+    stopbits = c4.selectbox("Bity stopu", [1, 1.5, 2])
+
+    st.divider()
+
+    # --- TERMINAL (PODOBNY DO TERMITE) ---
+    st.subheader("📟 Konsola szeregowa")
+    
+    # Symulacja okna terminala
+    if 'terminal_log' not in st.session_state:
+        st.session_state.terminal_log = "--- Rozpoczęcie logowania ---\n"
+
+    # Przyciski kontrolne
+    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 4])
+    if col_btn1.button("▶️ Połącz", use_container_width=True):
+        st.session_state.terminal_log += f"[INFO] Próba połączenia z {port}...\n"
+        st.warning("Uwaga: Fizyczne połączenie RS232 wymaga uruchomienia skryptu lokalnie (Python na komputerze).")
+
+    if col_btn2.button("🛑 Rozłącz", use_container_width=True):
+        st.session_state.terminal_log += "[INFO] Rozłączono.\n"
+
+    # Pole tekstowe terminala (Logi)
+    st.text_area("Odebrane dane (Read Only)", value=st.session_state.terminal_log, height=300)
+
+    # Wysyłanie komend (Input)
+    col_cmd, col_send = st.columns([5, 1])
+    command = col_cmd.text_input("Wyślij komendę do tachimetru (np. GET_DATA):")
+    if col_send.button("Wyślij ➡️", use_container_width=True):
+        if command:
+            st.session_state.terminal_log += f"[SENT] {command}\n"
+            # Tu w wersji lokalnej byłoby: ser.write(command.encode())
+            st.rerun()
+
+    # Dodatkowa opcja czyszczenia
+    if st.button("Wyczyść okno terminala"):
+        st.session_state.terminal_log = "--- Wyczyszczono logi ---\n"
+        st.rerun()
+
+    st.divider()
+    st.info("""
+    **Instrukcja dla prowadzącego:**
+    Aby aplikacja mogła realnie odbierać dane z RS232:
+    1. Musi być uruchomiona lokalnie (`streamlit run techniki2.py`).
+    2. Wymagana jest biblioteka `pyserial`.
+    3. Wersja chmurowa służy jako demonstracja interfejsu terminala.
+    """)
