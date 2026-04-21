@@ -151,7 +151,7 @@ with tabs[1]:
                 val_i = (delta_cc - (c_fixed / math.sin(z_rad_i))) * math.tan(z_rad_i)
                 i_values.append(val_i)
 
-        if i_values:
+   if i_values:
             i_sr = statistics.mean(i_values)
             mi_pom = statistics.stdev(i_values) / math.sqrt(len(i_values)) if len(i_values) > 1 else 0
             mi_z_kol = abs(mc_fixed / math.cos(z_rad_i))
@@ -160,6 +160,29 @@ with tabs[1]:
             res_i1, res_i2 = st.columns(2)
             res_i1.metric("Inklinacja średnia (i) [cc]", f"{i_sr:.2f}")
             res_i2.metric("Błąd inklinacji (mi) [cc]", f"± {mi_total:.2f}")
+
+            # --- NOWA SEKCJA: OKIENKA DO OBLICZEŃ PUNKTOWYCH ---
+            st.divider()
+            st.subheader("Oblicz poprawiony odczyt koła poziomego")
+            st.write("Wpisz dane dla konkretnego punktu, aby zastosować wyznaczoną poprawkę inklinacji.")
+            
+            c_calc1, c_calc2 = st.columns(2)
+            hz_punkt = c_calc1.number_input("Odczyt koła poziomego [g]", value=0.0, format="%.4f", key="hz_p_inc")
+            z_punkt = c_calc2.number_input("Odczyt koła pionowego (z) [g]", value=100.0, format="%.4f", key="z_p_inc")
+            
+            # Przeliczenie na radiany
+            z_p_rad = (z_punkt * math.pi) / 200
+            
+            if math.sin(z_p_rad) != 0 and math.tan(z_p_rad) != 0:
+                # Obliczenie poprawki w gradach (dzielimy cc przez 10 000)
+                poprawka_c = (c_fixed / math.sin(z_p_rad)) / 10000
+                poprawka_i = (i_sr / math.tan(z_p_rad)) / 10000
+                
+                hz_poprawiony = hz_punkt - poprawka_c - poprawka_i
+                
+                st.success(f"Poprawiony odczyt koła poziomego: **{hz_poprawiony:.4f} g**")
+            else:
+                st.error("Nie można obliczyć poprawki dla odczytu pionowego bliskiego 0 lub 200g.")
 
 
 
