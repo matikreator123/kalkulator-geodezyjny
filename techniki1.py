@@ -253,25 +253,97 @@ with tabs[2]:
 
 
 
-# --- ZAKŁADKA 4: POPRAWKA ATMOSFERYCZNA ---
-with tabs[3]:
-    st.header("Poprawka Atmosferyczna")
-    st.info("Dane wprowadzane przez użytkownika")
-    
-    ca, cb = st.columns(2)
-    with ca:
-        wave = st.number_input("Długość fali [nm]", value=633.0)
-        ts = st.number_input("Temperatura sucha [°C]", value=15.0)
-        tm = st.number_input("Temperatura mokra [°C]", value=12.0)
-    with cb:
-        p = st.number_input("Ciśnienie [hPa]", value=1002.48)
-        dist_raw = st.number_input("Pomierzona długość [m]", value=5177.02)
 
+
+
+with tabs[3]:
+    st.header("4. Poprawka atmosferyczna")
+    
+    # --- SEKCJA 1: DANE WEJŚCIOWE ---
+    st.subheader("Parametry pomiaru")
+    
+    col_at1, col_at2 = st.columns(2)
+    with col_at1:
+        # Pobieramy Ng0 z poprzedniej zakładki lub pozwalamy wpisać
+        ng0_input = st.number_input("Współczynnik Ng0 (z zakł. 3)", value=ng0_u, format="%.4f")
+        t_s = st.number_input("Temperatura sucha ts [°C]", value=15.0)
+        t_m = st.number_input("Temperatura mokra tm [°C]", value=12.0)
+    with col_at2:
+        p_hpa = st.number_input("Ciśnienie p [hPa]", value=1013.25)
+        d_mierzona = st.number_input("Pomierzona długość d [m]", value=1000.000, format="%.3f")
+
+    # --- OBLICZENIA (Wzory IUGG) ---
+    # 1. Obliczenie prężności pary wodnej (E) - wzór uproszczony
+    E = 6.11 * 10**(7.5 * t_m / (237.3 + t_m))
+    e = E - 0.000662 * p_hpa * (t_s - t_m)
+    
+    # 2. Współczynnik załamania w danych warunkach (n_at)
+    # n_at = 1 + 10^-6 * [ (Ng0 / (1 + t/273.15)) * (p/1013.25) - (11.27 * e / (1 + t/273.15)) * 10^-6 ]
+    term_p = (ng0_input / (1 + t_s/273.15)) * (p_hpa / 1013.25)
+    term_e = (11.27 * e) / (1 + t_s/273.15)
+    n_at = 1 + (term_p - term_e) * 10**-6
+
+    # 3. Poprawka atmosferyczna (K) w mm/km
+    K = (1/n_at - 1) * 10**6 
+    # 4. Poprawka liniowa (delta_d) i długość końcowa
+    delta_d = (K / 1000000) * d_mierzona
+    d_koncowa = d_mierzona + delta_d
+
+    # Wyświetlenie wyników ręcznych
     st.divider()
-    st.subheader("Wczytanie z pliku (lp; ts; tm; p; długość)")
-    file_atm = st.file_uploader("Wgraj plik tekstowy", type=['txt', 'csv'])
-    if file_atm:
-        st.write("Plik wczytany poprawnie (obliczenia w trakcie implementacji...)")
+    res_at1, res_at2, res_at3 = st.columns(3)
+    res_at1.metric("Poprawka [mm/km]", f"{K:.2f}")
+    res_at2.metric("Poprawka [m]", f"{delta_d:.4f}")
+    res_at3.metric("Długość poprawiona [m]", f"{d_koncowa:.4f}")
+
+    # --- SEKCJA 2: IMPORT Z PLIKU ---
+    st.divider()
+    st.subheader("Import danych z pliku (.txt)")
+    st.info("Wymagany format: lp; ts; tm; p; długość;")
+    
+    file_at = st.file_uploader("Wgraj plik tekstowy", type=['txt'], key="at_file_uploader")
+    
+    if file_at:
+        try:
+            # Czytanie pliku ze średnikami
+            df_at = pd.read_csv(file_at, sep=';', decimal=',', header=None, 
+                                names=['lp', 'ts', 'tm', 'p', 'dl', 'extra'])
+            # Usuwanie pustej kolumny 'extra' jeśli była na końcu linii
+            df_at = df_at.dropna(axis=1, how='all')
+            
+            # Funkcja do obliczeń dla każdego wiersza
+            def przelicz_wiersz(row):
+                temp_s = row['ts']
+                temp_m = row['tm']
+                cisn = row['p']
+                dane_dl = row['dl']
+                
+                # Powtórzenie wzorów dla tabeli
+                E_r = 6.11 * 10**(7.5 * temp_m / (237.3 + temp_m))
+                e_r = E_r - 0.000662 * cisn * (temp_s - temp_m)
+                nat_r = 1 + ((ng0_input / (1 + temp_s/273.15)) * (cisn / 1013.25) - (11.27 * e_r)/(1 + temp_s/273.15)) * 10**-6
+                K_r = (1/nat_r - 1) * 10**6
+                return round(dane_dl + (K_r/1000000)*dane_dl, 4)
+
+            df_at['długość poprawiona [m]'] = df_at.apply(przelicz_wiersz, axis=1)
+            
+            st.write("Wyniki obliczeń dla pliku:")
+            st.dataframe(df_at, use_container_width=True)
+            
+        except Exception as e:
+            st.error(f"Błąd formatu pliku: {e}. Upewnij się, że używasz średnika ';' jako separatora.")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
