@@ -107,26 +107,21 @@ with tabs[0]:
 
 
 # --- ZAKŁADKA 2: INKLINACJA ---
+# --- ZAKŁADKA 2: INKLINACJA ---
 with tabs[1]:
     st.header("2. Obliczanie Inklinacji")
     
-    # --- SEKCJA PARAMETRÓW STAŁYCH ---
     st.subheader("Parametry stałe serii")
-    st.info("Zgodnie z wytycznymi, dla tej serii przyjmujemy znaną kolimację instrumentu.")
-    
     c1, c2, c3 = st.columns(3)
-    c_fixed = c1.number_input("Stała kolimacja c [cc]", value=5.5, step=0.1, help="Wartość wyznaczona wcześniej dla instrumentu")
+    c_fixed = c1.number_input("Stała kolimacja c [cc]", value=5.5, step=0.1)
     mc_fixed = c2.number_input("mc [cc]", value=0.9, step=0.1)
-    z_grad_inc = c3.number_input("Odległość zenitowa serii z [g]", value=81.9768, format="%.4f", step=0.0001)
+    z_grad_inc = c3.number_input("Odległość zenitowa serii z [g]", value=81.9768, format="%.4f")
 
     st.divider()
-
-    # --- SEKCJA IMPORTU PLIKU ---
     st.subheader("Import danych pomiarowych")
-    uploaded_file_inc = st.file_uploader("Wgraj plik .txt dla inklinacji (format: KI KII)", type=['txt'], key="upload_inc_v2")
+    uploaded_file_inc = st.file_uploader("Wgraj plik .txt dla inklinacji", type=['txt'], key="upload_inc_final")
     
     inc_initial = []
-    
     if uploaded_file_inc is not None:
         content = uploaded_file_inc.read().decode("utf-8").splitlines()
         for line in content:
@@ -136,68 +131,35 @@ with tabs[1]:
                     inc_initial.append({"KI": float(parts[0]), "KII": float(parts[1])})
                 except ValueError:
                     continue
-        st.success(f"Zaimportowano {len(inc_initial)} wierszy.")
     else:
-        # Dane przykładowe z wytycznych
         inc_initial = [
             {"KI": 60.2702, "KII": 260.2679},
             {"KI": 60.2706, "KII": 260.2688},
             {"KI": 60.2710, "KII": 260.2686}
         ]
 
-    # --- TABELA DANYCH ---
-    inc_editor = st.data_editor(inc_initial, num_rows="dynamic", key="inc_editor_final", use_container_width=True)
+    inc_editor = st.data_editor(inc_initial, num_rows="dynamic", key="inc_editor_f", use_container_width=True)
 
-    # --- OBLICZENIA ---
     if inc_editor:
-        # Konwersja na radiany dla funkcji math.tan i math.sin
         z_rad_i = (z_grad_inc * math.pi) / 200
         i_values = []
-        
         for d in inc_editor:
             if d.get('KI') is not None and d.get('KII') is not None:
                 diff = d['KII'] - d['KI']
                 if diff < 0: diff += 400
                 delta_cc = ((diff - 200) / 2) * 10000
-                
-                # Wzór na inklinację: i = (delta - c/sin(z)) * tan(z)
-                # Wyliczamy i [cc]
-                if math.sin(z_rad_i) != 0 and math.cos(z_rad_i) != 0:
-                    val_i = (delta_cc - (c_fixed / math.sin(z_rad_i))) * math.tan(z_rad_i)
-                    i_values.append(val_i)
+                val_i = (delta_cc - (c_fixed / math.sin(z_rad_i))) * math.tan(z_rad_i)
+                i_values.append(val_i)
 
-     if i_values:
+        if i_values:
             i_sr = statistics.mean(i_values)
-            
-            # 1. Błąd wynikający z rozrzutu pomiarów (błąd przypadkowy)
-            if len(i_values) > 1:
-                mi_pomiaru = statistics.stdev(i_values) / math.sqrt(len(i_values))
-            else:
-                mi_pomiaru = 0
-            
-            # 2. Wpływ błędu znanej kolimacji (mc) na błąd inklinacji
-            # Z prawa przenoszenia błędów: mi_z_kolimacji = mc * tan(z) / sin(z) = mc / cos(z)
-            z_rad_i = (z_grad_inc * math.pi) / 200
-            mi_z_kolimacji = abs(mc_fixed / math.cos(z_rad_i))
-            
-            # 3. Całkowity błąd inklinacji (Geometryczna suma błędów)
-            mi_calkowite = math.sqrt(mi_pomiaru**2 + mi_z_kolimacji**2)
+            mi_pom = statistics.stdev(i_values) / math.sqrt(len(i_values)) if len(i_values) > 1 else 0
+            mi_z_kol = abs(mc_fixed / math.cos(z_rad_i))
+            mi_total = math.sqrt(mi_pom**2 + mi_z_kol**2)
             
             res_i1, res_i2 = st.columns(2)
             res_i1.metric("Inklinacja średnia (i) [cc]", f"{i_sr:.2f}")
-            res_i2.metric("Błąd inklinacji (mi) [cc]", f"± {mi_calkowite:.2f}", 
-                          help="Uwzględnia błąd pomiaru oraz błąd wprowadzonej kolimacji mc")
-            
-            res_i1, res_i2 = st.columns(2)
-            res_i1.metric("Inklinacja średnia (i) [cc]", f"{i_sr:.2f}")
-            res_i2.metric("Błąd inklinacji (mi) [cc]", f"± {mi_sr:.2f}")
-
-            st.divider()
-
-            # --- KALKULATOR POPRAWIONEGO ODCZYTU ---
-            st.subheader("Poprawiony odczyt Hz (uwzględnia c i i)")
-            col_hzi, col_vi = st.columns(2)
-            hz_in = col_hzi.number_input("Bieżący odczyt Hz [g]", value=0.0, format="%.4f", key="hz_inc_calc")
+            res_i2.metric("Błąd inklinacji (mi) [cc]", f"± {mi_total:.2f}")
 
 
 
