@@ -299,7 +299,7 @@ with tabs[3]:
     # --- SEKCJA 2: IMPORT Z PLIKU ---
     st.divider()
     st.subheader("Import danych z pliku (.txt)")
-    st.info("Wymagany format: lp; ts; tm; p; długość;")
+    st.info("Wymagany format: lp; ts; tm; p; długość")
     
     file_at = st.file_uploader("Wgraj plik tekstowy", type=['txt'], key="at_file_uploader")
     
