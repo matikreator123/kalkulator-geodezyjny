@@ -439,7 +439,7 @@ with tabs[5]:
         st.session_state.log = ""
         st.rerun()
 
-    st.text_area("Konsola (Termite Style)", value=st.session_state.log, height=250)
+    st.text_area("Konsola", value=st.session_state.log, height=250)
     
     cmd = st.text_input("Wyślij komendę do instrumentu:")
     if st.button("Wyślij ➡️"):
