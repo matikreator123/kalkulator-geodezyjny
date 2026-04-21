@@ -166,13 +166,27 @@ with tabs[1]:
                     val_i = (delta_cc - (c_fixed / math.sin(z_rad_i))) * math.tan(z_rad_i)
                     i_values.append(val_i)
 
-        if i_values:
+     if i_values:
             i_sr = statistics.mean(i_values)
-            # Błąd średni kwadratowy średniej
+            
+            # 1. Błąd wynikający z rozrzutu pomiarów (błąd przypadkowy)
             if len(i_values) > 1:
-                mi_sr = statistics.stdev(i_values) / math.sqrt(len(i_values))
+                mi_pomiaru = statistics.stdev(i_values) / math.sqrt(len(i_values))
             else:
-                mi_sr = 0
+                mi_pomiaru = 0
+            
+            # 2. Wpływ błędu znanej kolimacji (mc) na błąd inklinacji
+            # Z prawa przenoszenia błędów: mi_z_kolimacji = mc * tan(z) / sin(z) = mc / cos(z)
+            z_rad_i = (z_grad_inc * math.pi) / 200
+            mi_z_kolimacji = abs(mc_fixed / math.cos(z_rad_i))
+            
+            # 3. Całkowity błąd inklinacji (Geometryczna suma błędów)
+            mi_calkowite = math.sqrt(mi_pomiaru**2 + mi_z_kolimacji**2)
+            
+            res_i1, res_i2 = st.columns(2)
+            res_i1.metric("Inklinacja średnia (i) [cc]", f"{i_sr:.2f}")
+            res_i2.metric("Błąd inklinacji (mi) [cc]", f"± {mi_calkowite:.2f}", 
+                          help="Uwzględnia błąd pomiaru oraz błąd wprowadzonej kolimacji mc")
             
             res_i1, res_i2 = st.columns(2)
             res_i1.metric("Inklinacja średnia (i) [cc]", f"{i_sr:.2f}")
