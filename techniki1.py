@@ -349,50 +349,44 @@ with tabs[3]:
 
 
 
-# --- ZAKŁADKA 5: ŁUK A CIĘCIWA ---
 with tabs[4]:
-    st.header("5. Obliczenie różnicy między łukiem a cięciwą")
-    st.markdown("""
-    Zakładka oblicza różnicę między długością łuku ($s$) a długością cięciwy ($d$) na powierzchni Ziemi.
-    Wyniki prezentowane są w milimetrach dla dystansów od 1 do 100 km.
-    """)
-
-    # 1. Definiowanie parametrów
-    R = 6371.0  # Średni promień Ziemi w km
-    odleglosci_km = np.arange(1, 101, 1)  # Zakres 1-100 km co 1 km 
-
-    # 2. Obliczenia
-    # Wzór: różnica = s - d 
-    # d = 2 * R * sin(s / (2 * R))
-    # Przybliżony wzór szeregu Taylora: (s^3) / (24 * R^2)
+    st.header("5. Różnica między łukiem a cięciwą")
     
-    wyniki_mm = []
-    for s in odleglosci_km:
-        # s i R są w km, wynik d_km również w km
-        d_km = 2 * R * math.sin(s / (2 * R))
-        roznica_km = s - d_km
-        # Konwersja na mm (1 km = 1 000 000 mm) 
-        wyniki_mm.append(round(roznica_km * 1000000, 2))
+    # 1. SUWAK NA SAMEJ GÓRZE (zgodnie z prośbą)
+    st.subheader("Szybki kalkulator")
+    R_earth = 6371.0  # promień Ziemi w km
+    s_user = st.slider("Wybierz odległość [km]", 1, 100, 14, key="slider_arc")
+    
+    # Obliczenie punktowe
+    diff_user = ((s_user**3) / (24 * R_earth**2)) * 1000000
+    st.info(f"Dla odległości **{s_user} km**, różnica łuk-cięciwa wynosi ok. **{diff_user:.2f} mm**") 
 
-    # 3. Przygotowanie danych do tabeli i wykresu
-    df_luk = pd.DataFrame({
-        "Odległość [km]": odleglosci_km,
-        "Różnica [mm]": wyniki_mm
+    st.divider()
+
+    # 2. OBLICZENIA DLA CAŁEGO ZAKRESU (1-100 km)
+    dist_range = np.arange(1, 101, 1)
+    # Pełny wzór dla precyzji wykresu: s - 2R*sin(s/2R)
+    diffs_mm = [(s - (2 * R_earth * math.sin(s / (2 * R_earth)))) * 1000000 for s in dist_range]
+
+    df_arc = pd.DataFrame({
+        "Odległość [km]": dist_range,
+        "Różnica [mm]": diffs_mm
     })
 
-    # 4. Wyświetlanie wykresu 
-    st.subheader("Wykres zależności różnicy od odległości")
-    st.line_chart(df_luk.set_index("Odległość [km]"))
+    # 3. WYKRES PLOTLY (Gwarantowana widoczność)
+    st.subheader("Wykres zależności (1 - 100 km)")
+    import plotly.express as px # Upewnij się, że masz ten import na górze pliku!
+    
+    fig_arc = px.line(df_arc, x="Odległość [km]", y="Różnica [mm]", 
+                      title="Przyrost różnicy łuk-cięciwa")
+    
+    # Automatyczne dopasowanie osi, by krzywa była wyraźna
+    fig_arc.update_yaxes(autorange=True, fixedrange=False)
+    st.plotly_chart(fig_arc, use_container_width=True)
 
-    # 5. Wyświetlanie tabeli 
-    st.subheader("Tabela wyników co 1 km")
-    st.dataframe(df_luk, use_container_width=True, height=500)
-
-    # Dodatkowy kalkulator dla dowolnej wartości
-    st.divider()
-    s_user = st.slider("Wybierz odległość [km]", 1, 100, 10)
-    diff_user = ((s_user**3) / (24 * R**2)) * 1000000
-    st.info(f"Dla odległości **{s_user} km**, różnica łuk-cięciwa wynosi ok. **{diff_user:.2f} mm**")
+    # 4. TABELA WYNIKÓW
+    st.subheader("Tabela wyników co 1 km") 
+    st.dataframe(df_arc.style.format({"Różnica [mm]": "{:.2f}"}), use_container_width=True, height=400)
 
 
 
