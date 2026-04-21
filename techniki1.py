@@ -195,16 +195,64 @@ with tabs[1]:
 
 
 
+
+
 # --- ZAKŁADKA 3: Ng0 ---
 with tabs[2]:
-    st.header("Współczynnik Ng0")
-    fale = np.arange(400, 1610, 10)
-    # Przykładowy wzór
-    ng0_values = [287.604 + (1.6288 / (f/1000)**2) + (0.0136 / (f/1000)**4) for f in fale] 
+    st.header("3. Obliczenie współczynnika Ng0")
+    st.markdown("""
+    W tej zakładce obliczany jest grupowy współczynnik załamania dla atmosfery wzorcowej 
+    (t=15°C, p=1013.25 hPa, h=0%). Obliczenia wykonano wzorem **Barrella i Searsa**.
+    """)
+
+    # 1. Przygotowanie danych (zakres 400-1600 nm, krok 10 nm)
+    fale_nm = np.arange(400, 1610, 10)
     
-    df_ng0 = pd.DataFrame({"Długość fali [nm]": fale, "Ng0": ng0_values})
+    # Wzór Barrella i Searsa wymaga długości fali w mikrometrach [μm]
+    # Ng0 = 287.604 + 1.6288 / L^2 + 0.0136 / L^4
+    wyniki = []
+    for f in fale_nm:
+        L = f / 1000.0  # zamiana nm na μm
+        ng0 = 287.604 + (1.6288 / (L**2)) + (0.0136 / (L**4))
+        wyniki.append(round(ng0, 4))
+
+    # 2. Tworzenie tabeli (DataFrame)
+    df_ng0 = pd.DataFrame({
+        "Długość fali [nm]": fale_nm,
+        "Współczynnik Ng0": wyniki
+    })
+
+    # 3. Wyświetlanie wykresu
+    st.subheader("Wykres dyspersji Ng0")
+    # Używamy chart_data do narysowania ładnego wykresu liniowego
     st.line_chart(df_ng0.set_index("Długość fali [nm]"))
-    st.dataframe(df_ng0)
+    
+    
+
+    # 4. Wyświetlanie tabeli
+    st.subheader("Tabela wartości co 10 nm")
+    st.write("Możesz przeszukiwać tabelę lub pobrać ją jako plik CSV najeżdżając na jej prawy górny róg.")
+    st.dataframe(df_ng0, use_container_width=True, height=500)
+
+    # Dodatkowa ciekawostka dla wybranej fali
+    st.divider()
+    st.subheader("Sprawdź konkretną długość fali")
+    f_user = st.slider("Wybierz długość fali [nm]", 400, 1600, 633)
+    L_u = f_user / 1000.0
+    ng0_u = 287.604 + (1.6288 / (L_u**2)) + (0.0136 / (L_u**4))
+    st.info(f"Dla fali **{f_user} nm** współczynnik Ng0 wynosi: **{ng0_u:.4f}**")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
