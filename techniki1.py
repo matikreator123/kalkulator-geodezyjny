@@ -27,7 +27,7 @@ with tabs[0]:
     st.header("1. Obliczenie Kolimacji")
     
     st.subheader("Import danych z pliku lub tabeli")
-    st.info("Wgraj plik .txt (odczytI odczytII) lub wpisz dane ręcznie do tabeli.")
+    st.info("Wgraj plik .txt (odczyt I odczyt II) lub wpisz dane ręcznie do tabeli.")
 
     # --- FUNKCJA IMPORTU Z PLIKU ---
     uploaded_file_col = st.file_uploader("Wybierz plik tekstowy dla kolimacji", type=['txt'], key="upload_kol")
@@ -203,7 +203,7 @@ with tabs[1]:
 
 with tabs[2]:
     st.header("3. Obliczenie Ng0 dla długości fali")
-    st.write("Wykonanie wykresu zależności współczynników od długości fali oraz tabela co 10 nm.")
+    st.write("Wykres zależności współczynników od długości fali oraz tabela co 10 nm.")
 
     # --- CZĘŚĆ 1: KALKULATOR ---
     st.subheader("Kalkulator Ng0")
@@ -401,60 +401,48 @@ with tabs[4]:
 
 with tabs[5]:
     st.header("6. Obsługa portu szeregowego RS232")
-    st.markdown("""
-    Ta zakładka służy do komunikacji z tachimetrem. 
-    Działa na zasadzie terminala.
-    """)
+    
+    # Próbujemy zaimportować serial (działa tylko lokalnie po pip install pyserial)
+    try:
+        import serial
+        import serial.tools.list_ports
+        serial_available = True
+    except ImportError:
+        serial_available = False
 
-    # --- KONFIGURACJA POŁĄCZENIA ---
+    # --- LISTA PORTÓW ---
     st.subheader("⚙️ Konfiguracja połączenia")
+    available_ports = []
+    if serial_available:
+        ports = serial.tools.list_ports.comports()
+        available_ports = [p.device for p in ports]
+    
     c1, c2, c3, c4 = st.columns(4)
+    port = c1.selectbox("Port COM", available_ports if available_ports else ["Brak portów"])
+    baud = c2.selectbox("Baudrate", [1200, 2400, 4800, 9600, 19200, 115200], index=3)
     
-    port = c1.selectbox("Port COM", ["COM1", "COM2", "COM3", "COM4", "/dev/ttyUSB0"])
-    baud = c2.selectbox("Baudrate (Prędkość)", [1200, 2400, 4800, 9600, 19200, 38400, 115200], index=3)
-    parity = c3.selectbox("Parzystość", ["None", "Even", "Odd"])
-    stopbits = c4.selectbox("Bity stopu", [1, 1.5, 2])
-
-    st.divider()
-
-    # --- TERMINAL (PODOBNY DO TERMITE) ---
-    st.subheader("📟 Konsola szeregowa")
-    
-    # Symulacja okna terminala
+    # --- LOGIKA TERMINALA ---
     if 'terminal_log' not in st.session_state:
-        st.session_state.terminal_log = "--- Rozpoczęcie logowania ---\n"
+        st.session_state.terminal_log = ""
 
-    # Przyciski kontrolne
-    col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 4])
-    if col_btn1.button("▶️ Połącz", use_container_width=True):
-        st.session_state.terminal_log += f"[INFO] Próba połączenia z {port}...\n"
-        st.warning("Uwaga: Fizyczne połączenie RS232 wymaga uruchomienia skryptu lokalnie (Python na komputerze).")
+    if st.button("▶️ Połącz i czytaj dane"):
+        if not serial_available:
+            st.error("Biblioteka 'pyserial' nie jest zainstalowana. Zainstaluj ją przez 'pip install pyserial'.")
+        elif not available_ports:
+            st.error("Nie wykryto żadnego urządzenia podpiętego do portu COM.")
+        else:
+            try:
+                # Otwarcie portu (tylko lokalnie!)
+                with serial.Serial(port, baud, timeout=1) as ser:
+                    st.success(f"Połączono z {port}!")
+                    line = ser.readline().decode('utf-16', errors='ignore') # Tachimetry często sypią UTF-16
+                    if line:
+                        st.session_state.terminal_log += f"[RECV] {line}\n"
+            except Exception as e:
+                st.error(f"Błąd połączenia: {e}")
 
-    if col_btn2.button("🛑 Rozłącz", use_container_width=True):
-        st.session_state.terminal_log += "[INFO] Rozłączono.\n"
-
-    # Pole tekstowe terminala (Logi)
-    st.text_area("Odebrane dane (Read Only)", value=st.session_state.terminal_log, height=300)
-
-    # Wysyłanie komend (Input)
-    col_cmd, col_send = st.columns([5, 1])
-    command = col_cmd.text_input("Wyślij komendę do tachimetru (np. GET_DATA):")
-    if col_send.button("Wyślij ➡️", use_container_width=True):
-        if command:
-            st.session_state.terminal_log += f"[SENT] {command}\n"
-            # Tu w wersji lokalnej byłoby: ser.write(command.encode())
-            st.rerun()
-
-    # Dodatkowa opcja czyszczenia
-    if st.button("Wyczyść okno terminala"):
-        st.session_state.terminal_log = "--- Wyczyszczono logi ---\n"
+    st.text_area("Konsola (Termite Style)", value=st.session_state.terminal_log, height=300)
+    
+    if st.button("Wyczyść logi"):
+        st.session_state.terminal_log = ""
         st.rerun()
-
-    st.divider()
-    st.info("""
-    **Instrukcja:**
-    Aby aplikacja mogła realnie odbierać dane z RS232:
-    1. Musi być uruchomiona lokalnie (`streamlit run techniki2.py`).
-    2. Wymagana jest biblioteka `pyserial`.
-    3. Wersja chmurowa służy jako demonstracja interfejsu terminala.
-    """)
