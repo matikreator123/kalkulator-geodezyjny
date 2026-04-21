@@ -25,57 +25,81 @@ tabs = st.tabs([
 with tabs[0]:
     st.header("1. Obliczenie Kolimacji")
     
-    # Sekcja A: Import i statystyka
-    st.subheader("Import danych i statystyka serii")
-    st.write("Wpisz odczyty w gradach [g]. Użyj kropki jako separatora.")
-    
-    col_data = st.data_editor([
-        {"KI": 101.4598, "KII": 301.4586},
-        {"KI": 101.4596, "KII": 301.4588},
-        {"KI": 101.4599, "KII": 301.4594}
-    ], num_rows="dynamic", key="kol_editor_final")
+    st.subheader("Import danych z pliku lub tabeli")
+    st.info("Wgraj plik .txt (odczytI odczytII) lub wpisz dane ręcznie do tabeli.")
 
-    # Obliczenia statystyczne
+    # --- FUNKCJA IMPORTU Z PLIKU ---
+    uploaded_file_col = st.file_uploader("Wybierz plik tekstowy dla kolimacji", type=['txt'], key="upload_kol")
+    
+    # Przygotowanie listy startowej dla tabeli
+    initial_data = []
+    
+    if uploaded_file_col is not None:
+        content = uploaded_file_col.read().decode("utf-8").splitlines()
+        for line in content:
+            parts = line.replace(',', '.').split() # obsługa przecinków i kropek
+            if len(parts) >= 2:
+                try:
+                    initial_data.append({"KI": float(parts[0]), "KII": float(parts[1])})
+                except ValueError:
+                    continue
+        st.success(f"Zaimportowano {len(initial_data)} wierszy z pliku.")
+    else:
+        # Przykładowe dane z Twoich wytycznych
+        initial_data = [
+            {"KI": 101.4598, "KII": 301.4586},
+            {"KI": 101.4596, "KII": 301.4588},
+            {"KI": 101.4599, "KII": 301.4594}
+        ]
+
+    # --- EDYTOR TABELI (Zawsze widoczny) ---
+    col_data = st.data_editor(initial_data, num_rows="dynamic", key="kol_editor_v2", use_container_width=True)
+
+    # --- OBLICZENIA STATYSTYCZNE ---
     deltas = []
     for d in col_data:
-        if d.get('KI') and d.get('KII'):
-            # delta = (KII - KI - 200g)/2 -> zamiana na cc (*10000)
+        if d.get('KI') is not None and d.get('KII') is not None:
             diff = d['KII'] - d['KI']
+            # Normalizacja różnicy do zakresu ok. 200g
             if diff < 0: diff += 400
+            # Obliczenie delty w cc
             val = ((diff - 200) / 2) * 10000
             deltas.append(val)
 
     if deltas:
         c_sr = statistics.mean(deltas)
-        # Błąd średni kwadratowy pojedynczego pomiaru i błąd średniej
+        # Błąd średni kolimacji średniej
         if len(deltas) > 1:
-            v = [x - c_sr for x in deltas]
-            suma_vv = sum(i*i for i in v)
-            m_c = math.sqrt(suma_vv / (len(deltas) - 1)) # błąd pojedynczego
-            m_c_sr = m_c / math.sqrt(len(deltas))       # błąd średniej
+            m_c_sr = statistics.stdev(deltas) / math.sqrt(len(deltas))
         else:
             m_c_sr = 0
 
-        c1, c2 = st.columns(2)
-        c1.metric("Kolimacja średnia [cc]", f"{c_sr:.2f}")
-        c2.metric("Błąd kolimacji [cc]", f"± {m_c_sr:.2f}")
+        res1, res2 = st.columns(2)
+        res1.metric("Kolimacja średnia (c) [cc]", f"{c_sr:.2f}")
+        res2.metric("Błąd kolimacji (mc) [cc]", f"± {m_c_sr:.2f}")
 
-    st.divider()
+        st.divider()
 
-    # Sekcja B: Poprawiony odczyt (zgodnie z wytycznymi)
-    st.subheader("Kalkulator poprawionego odczytu")
-    col_hz, col_v = st.columns(2)
-    hz_raw = col_hz.number_input("Odczyt Hz [g]", value=0.0, format="%.4f")
-    v_raw = col_v.number_input("Odczyt pionowy V [g]", value=100.0, format="%.4f")
+        # --- POPRAWIONY ODCZYT KOŁA POZIOMEGO ---
+        st.subheader("Oblicz poprawiony odczyt koła poziomego")
+        c_hz, c_v = st.columns(2)
+        hz_raw = c_hz.number_input("Odczyt koła poziomego [g]", value=0.0, format="%.4f")
+        v_raw = c_v.number_input("Odczyt koła pionowego (z) [g]", value=100.0, format="%.4f")
 
-    # Obliczenie poprawki: Hz_popr = Hz - c/sin(z)
-    z_rad = (v_raw * math.pi) / 200
-    if math.sin(z_rad) != 0:
-        poprawka_g = (c_sr / 10000) / math.sin(z_rad)
-        hz_poprawiony = hz_raw - poprawka_g
-        st.success(f"Poprawiony odczyt Hz: **{hz_poprawiony:.4f} g**")
-    else:
-        st.error("Błąd: Odczyt pionowy bliski 0 lub 200!")
+        z_rad = (v_raw * math.pi) / 200
+        if math.sin(z_rad) != 0:
+            # Hz_popr = Hz - c/sin(z)
+            poprawka_grad = (c_sr / 10000) / math.sin(z_rad)
+            hz_popr = hz_raw - poprawka_grad
+            st.success(f"**Poprawiony odczyt koła poziomego:** {hz_popr:.4f} g")
+        else:
+            st.warning("Nie można obliczyć poprawki dla z = 0 lub z = 200.")
+
+
+
+
+
+
 
 
 
