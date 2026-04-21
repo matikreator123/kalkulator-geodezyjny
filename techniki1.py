@@ -1,6 +1,7 @@
 import streamlit as st
 import math
 import statistics
+import os
 
 # --- KONFIGURACJA STRONY ---
 st.set_page_config(page_title="Kalkulator Geodezyjny", layout="wide")
@@ -17,13 +18,18 @@ def oblicz_statystyki(lista):
         blad = 0
     return round(srednia, 2), round(blad, 2)
 
+# --- PRZYGOTOWANIE DANYCH (pomiar.txt) ---
+if not os.path.exists("pomiar.txt"):
+    with open("pomiar.txt", "w") as f:
+        f.write("100.0050 300.0070\n100.0040 300.0080\n100.0060 300.0090")
+
 # --- INTERFEJS UŻYTKOWNIKA ---
-st.title("📐 Interaktywny Kalkulator Technik Pomiaru")
-st.markdown("Wpisz odczyty KI i KII bezpośrednio do tabeli. Wyniki przeliczą się automatycznie.")
+st.title("📐 Kalkulator Technik Pomiaru")
+st.markdown("Obliczanie kolimacji i inklinacji na podstawie pliku `pomiar.txt`.")
 
 # Sidebar - Panel boczny
 with st.sidebar:
-    st.header("⚙️ Ustawienia")
+    st.header("Ustawienia")
     tryb = st.selectbox("Wybierz tryb:", [
         "1. Kolimacja (c)", 
         "2. Inklinacja (i)", 
@@ -39,82 +45,57 @@ with st.sidebar:
     elif "4." in tryb:
         param_dodatkowy = st.number_input("Znana inklinacja i [cc]:", value=0.0)
 
-# --- EDYTOWALNA TABELA (Wpisywanie na stronie) ---
-st.subheader("📝 Dane pomiarowe")
-default_data = [
-    {"KI": 100.0050, "KII": 300.0070},
-    {"KI": 100.0040, "KII": 300.0080},
-    {"KI": 100.0060, "KII": 300.0090}
-]
-
-# Edytor tabeli - pozwala dodawać wiersze przyciskiem "+" pod tabelą
-edited_data = st.data_editor(
-    default_data, 
-    num_rows="dynamic", 
-    use_container_width=True,
-    key="data_editor"
-)
-
 # --- GŁÓWNA LOGIKA ---
 try:
-    # Pobranie danych z edytora
-    pomiary = [[row["KI"], row["KII"]] for row in edited_data if row["KI"] is not None and row["KII"] is not None]
+    # Wczytanie danych
+    pomiary = []
+    with open("pomiar.txt", "r") as f:
+        for linia in f:
+            pomiary.append([float(x) for x in linia.split()])
     
-    if pomiary:
-        # Obliczanie delt (odchyleń)
-        deltas = [((abs(m[1] - m[0]) - 200) / 2) * 10000 for m in pomiary]
-        
-        # Przeliczenia kątowe
-        z_rad = (z_grad * math.pi) / 200
-        tan_z = math.tan(z_rad)
-        sin_z = math.sin(z_rad)
-        
-        wyniki_czastkowe = []
-        label = ""
+    # Obliczanie delt (odchyleń)
+    deltas = [((abs(m[1] - m[0]) - 200) / 2) * 10000 for m in pomiary]
+    
+    # Przeliczenia kątowe
+    z_rad = (z_grad * math.pi) / 200
+    tan_z = math.tan(z_rad)
+    sin_z = math.sin(z_rad)
+    
+    wyniki_czastkowe = []
+    label = ""
 
-        if "1." in tryb:
-            label, wyniki_czastkowe = "Kolimacja (c)", deltas
-        elif "2." in tryb:
-            label, wyniki_czastkowe = "Inklinacja (i)", [d * tan_z for d in deltas]
-        elif "3." in tryb:
-            label, wyniki_czastkowe = "Inklinacja (i)", [(d - param_dodatkowy/sin_z) * tan_z for d in deltas]
-        elif "4." in tryb:
-            label, wyniki_czastkowe = "Kolimacja (c)", [(d - param_dodatkowy/tan_z) * sin_z for d in deltas]
+    if "1." in tryb:
+        label, wyniki_czastkowe = "Kolimacja (c)", deltas
+    elif "2." in tryb:
+        label, wyniki_czastkowe = "Inklinacja (i)", [d * tan_z for d in deltas]
+    elif "3." in tryb:
+        label, wyniki_czastkowe = "Inklinacja (i)", [(d - param_dodatkowy/sin_z) * tan_z for d in deltas]
+    elif "4." in tryb:
+        label, wyniki_czastkowe = "Kolimacja (c)", [(d - param_dodatkowy/tan_z) * sin_z for d in deltas]
 
-        # Statystyki
-        sr, blad = oblicz_statystyki(wyniki_czastkowe)
+    # Statystyki
+    sr, blad = oblicz_statystyki(wyniki_czastkowe)
 
-        # --- WYŚWIETLANIE WYNIKÓW ---
-        st.divider()
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric(label, f"{sr} cc")
-        with col2:
-            st.metric("Błąd średni", f"± {blad} cc")
+    # --- WYŚWIETLANIE WYNIKÓW ---
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric(label, f"{sr} cc")
+    with col2:
+        st.metric("Błąd średni", f"± {blad} cc")
 
-        # Wykres rozrzutu wyników
-        st.bar_chart(wyniki_czastkowe)
+    # Tabela z danymi
+    st.subheader("Dane z pliku i odchylenia")
+    st.table([{"KI": p[0], "KII": p[1], "Delta [cc]": round(d, 2)} for p, d in zip(pomiary, deltas)])
 
-        # --- POBIERANIE RAPORTU ---
-        st.subheader("💾 Eksport wyników")
-        
-        # Przygotowanie tekstu raportu
-        raport_text = f"RAPORT Z POMIARU\n"
-        raport_text += f"-----------------\n"
-        raport_text += f"Tryb obliczeń: {tryb}\n"
-        raport_text += f"Odległość zenitowa z: {z_grad} g\n"
-        raport_text += f"WYNIK ŚREDNI: {sr} cc\n"
-        raport_text += f"BŁĄD ŚREDNI: ± {blad} cc\n\n"
-        raport_text += f"Liczba pomiarów: {len(pomiary)}"
-
-        st.download_button(
-            label="Pobierz raport jako TXT",
-            data=raport_text,
-            file_name="wyniki_geodezja.txt",
-            mime="text/plain"
-        )
-    else:
-        st.info("Tabela jest pusta. Wpisz dane, aby zobaczyć wyniki.")
+    # Zapis do pliku wynik.txt
+    if st.button("Zapisz raport do wynik.txt"):
+        with open("wynik.txt", "a") as f:
+            f.write(f"Tryb: {label}, Wynik: {sr}, Blad: {blad}, z: {z_grad}g\n")
+        st.success("Zapisano pomyślnie!")
 
 except Exception as e:
-    st.error(f"Wystąpił błąd podczas obliczeń: {e}")
+    st.error(f"Wystąpił błąd: {e}")
+    st.info("Sprawdź czy plik 'pomiar.txt' ma poprawny format (dwie liczby w linii).")
+    st.download_button("Pobierz raport jako TXT", 
+                   data=f"Wynik: {sr} cc, Blad: {blad} cc", 
+                   file_name="wyniki_geodezja.txt")
