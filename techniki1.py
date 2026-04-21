@@ -213,7 +213,7 @@ with tabs[2]:
     st.info(f"Dla fali **{f_user} nm** współczynnik Ng0 wynosi: **{ng0_u:.4f}**")
 
     # --- CZĘŚĆ 2: OBLICZENIA ZBIORCZE (400-1600 nm) ---
-    lambdy = np.arange(400, 1610, 10) [cite: 2]
+    lambdy = np.arange(400, 1610, 10) 
     ng0_list = [287.604 + (1.6288 / ((l/1000.0)**2)) + (0.0136 / ((l/1000.0)**4)) for l in lambdy]
 
     df_ng0 = pd.DataFrame({
