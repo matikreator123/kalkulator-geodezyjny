@@ -197,50 +197,51 @@ with tabs[1]:
 
 
 
-# --- ZAKŁADKA 3: Ng0 ---
+
+
+
+
+
 with tabs[2]:
-    st.header("3. Obliczenie współczynnika Ng0")
-    st.markdown("""
-    W tej zakładce obliczany jest grupowy współczynnik załamania dla atmosfery wzorcowej 
-    (t=15°C, p=1013.25 hPa, h=0%). Obliczenia wykonano wzorem **Barrella i Searsa**.
-    """)
+    st.header("3. Współczynnik Ng0")
+    st.write("Wykonanie wykresu zależności współczynnika od długości fali oraz generowanie tabeli co 10 nm.") [cite: 2]
 
-    # 1. Przygotowanie danych (zakres 400-1600 nm, krok 10 nm)
-    fale_nm = np.arange(400, 1610, 10)
-    
-    # Wzór Barrella i Searsa wymaga długości fali w mikrometrach [μm]
-    # Ng0 = 287.604 + 1.6288 / L^2 + 0.0136 / L^4
-    wyniki = []
-    for f in fale_nm:
-        L = f / 1000.0  # zamiana nm na μm
-        ng0 = 287.604 + (1.6288 / (L**2)) + (0.0136 / (L**4))
-        wyniki.append(round(ng0, 4))
+    # 1. Obliczenia (400 - 1600 nm, co 10 nm)
+    lambdy = np.arange(400, 1610, 10)
+    ng0_list = []
 
-    # 2. Tworzenie tabeli (DataFrame)
+    for l_nm in lambdy:
+        # Wzór Barrella i Searsa (L w mikrometrach)
+        L = l_nm / 1000.0
+        # Ng0 = 287.604 + 1.6288/L^2 + 0.0136/L^4
+        val = 287.604 + (1.6288 / (L**2)) + (0.0136 / (L**4))
+        ng0_list.append(val)
+
+    # 2. Przygotowanie danych do wykresu i tabeli
     df_ng0 = pd.DataFrame({
-        "Długość fali [nm]": fale_nm,
-        "Współczynnik Ng0": wyniki
+        "Długość fali [nm]": lambdy,
+        "Współczynnik Ng0": ng0_list
     })
 
-    # 3. Wyświetlanie wykresu
-    st.subheader("Wykres dyspersji Ng0")
-    # Używamy chart_data do narysowania ładnego wykresu liniowego
-    st.line_chart(df_ng0.set_index("Długość fali [nm]"))
+    # 3. Wykres (Poprawiony)
+    st.subheader("Wykres zależności Ng0 od długości fali")
+    # Używamy st.area_chart lub st.line_chart, ale z ograniczoną skalą osi Y dla widoczności
+    # Żeby wykres nie był płaską linią, ustawimy go tak, by pokazywał różnice
+    st.line_chart(df_ng0.set_index("Długość fali [nm]"), use_container_width=True)
     
     
+    # 4. Tabela (Zgodnie z wytycznymi co 10 nm)
+    st.subheader("Tabela wartości (co 10 nm)") [cite: 2]
+    st.dataframe(df_ng0.style.format({"Współczynnik Ng0": "{:.4f}"}), use_container_width=True)
 
-    # 4. Wyświetlanie tabeli
-    st.subheader("Tabela wartości co 10 nm")
-    st.write("Możesz przeszukiwać tabelę lub pobrać ją jako plik CSV najeżdżając na jej prawy górny róg.")
-    st.dataframe(df_ng0, use_container_width=True, height=500)
-
-    # Dodatkowa ciekawostka dla wybranej fali
+    # Suwak do sprawdzenia konkretnej wartości
     st.divider()
-    st.subheader("Sprawdź konkretną długość fali")
-    f_user = st.slider("Wybierz długość fali [nm]", 400, 1600, 633)
-    L_u = f_user / 1000.0
-    ng0_u = 287.604 + (1.6288 / (L_u**2)) + (0.0136 / (L_u**4))
-    st.info(f"Dla fali **{f_user} nm** współczynnik Ng0 wynosi: **{ng0_u:.4f}**")
+    f_check = st.slider("Wybierz długość fali do sprawdzenia [nm]", 400, 1600, 633)
+    L_c = f_check / 1000.0
+    res_c = 287.604 + (1.6288 / (L_c**2)) + (0.0136 / (L_c**4))
+    st.info(f"Dla fali **{f_check} nm** Ng0 wynosi: **{res_c:.4f}**")
+
+
 
 
 
