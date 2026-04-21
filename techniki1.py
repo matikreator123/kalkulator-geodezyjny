@@ -403,7 +403,7 @@ with tabs[5]:
     st.header("6. Obsługa portu szeregowego RS232")
     st.markdown("""
     Ta zakładka służy do komunikacji z tachimetrem. 
-    Działa na zasadzie terminala (podobnie jak program **Termite**).
+    Działa na zasadzie terminala.
     """)
 
     # --- KONFIGURACJA POŁĄCZENIA ---
@@ -452,7 +452,7 @@ with tabs[5]:
 
     st.divider()
     st.info("""
-    **Instrukcja dla prowadzącego:**
+    **Instrukcja:**
     Aby aplikacja mogła realnie odbierać dane z RS232:
     1. Musi być uruchomiona lokalnie (`streamlit run techniki2.py`).
     2. Wymagana jest biblioteka `pyserial`.
