@@ -231,7 +231,7 @@ with tabs[2]:
     
     
     # 4. Tabela (Zgodnie z wytycznymi co 10 nm)
-    st.subheader("Tabela wartości (co 10 nm)") [cite: 2]
+    st.subheader("Tabela wartości (co 10 nm)") 
     st.dataframe(df_ng0.style.format({"Współczynnik Ng0": "{:.4f}"}), use_container_width=True)
 
     # Suwak do sprawdzenia konkretnej wartości
