@@ -413,7 +413,8 @@ with tabs[5]:
         import serial.tools.list_ports
         available = [p.device for p in serial.tools.list_ports.comports()]
         if available: ports = available
-    except: pass
+    except: 
+        pass
     
     sel_port = c1.selectbox("Port COM", ports)
     baud = c2.selectbox("Baudrate (Prędkość)", [1200, 2400, 4800, 9600, 19200, 38400, 115200], index=3)
@@ -428,13 +429,15 @@ with tabs[5]:
     st.divider()
 
     # --- LOGIKA TERMINALA ---
-    if 'log' not in st.session_state: st.session_state.log = ""
+    if 'log' not in st.session_state: 
+        st.session_state.log = ""
     
     col_a, col_b = st.columns([1, 4])
+    
     if col_a.button("▶️ Połącz i czytaj"):
-        # Symulacja dla wersji chmurowej
+        # Wyświetlamy tylko parametry otwarcia portu
         st.session_state.log += f"[INFO] Otwarto {sel_port}: {baud}, {databits}, {parity[0]}, {stopbits}\n"
-        st.session_state.log += "[RECV] Pomiar nr 1: Hz=120.4500g V=98.1200g d=150.234m\n"
+        st.session_state.log += "[INFO] Oczekiwanie na dane z instrumentu...\n"
         
     if col_b.button("🗑️ Wyczyść logi"):
         st.session_state.log = ""
