@@ -265,78 +265,72 @@ with tabs[3]:
     
     col_at1, col_at2 = st.columns(2)
     with col_at1:
-        f_wave = st.number_input("Długość fali [nm]:", value=633.0, step=1.0, key="f_wave_v7")
-        t_s = st.number_input("Temperatura sucha ts [°C]:", value=20.0, key="ts_v7")
-        t_m = st.number_input("Temperatura mokra tm [°C]:", value=15.0, key="tm_v7")
+        f_wave = st.number_input("Długość fali [nm]:", value=633.0, step=1.0, key="f_wave_v_final")
+        t_s = st.number_input("Temperatura sucha ts [°C]:", value=20.0, key="ts_v_final")
+        t_m = st.number_input("Temperatura mokra tm [°C]:", value=15.0, key="tm_v_final")
     with col_at2:
-        # Ustawienie domyślne na 1013.25 zgodnie z PDF [cite: 210]
-        p_hpa = st.number_input("Ciśnienie p [hPa]:", value=1013.25, key="p_v7")
-        d_mierzona = st.number_input("Pomierzona długość d [m]:", value=1000.0000, format="%.4f", key="d_m_v7")
+        p_hpa = st.number_input("Ciśnienie p [hPa]:", value=1013.0, key="p_v_final")
+        d_mierzona = st.number_input("Pomierzona długość d [m]:", value=1000.0000, format="%.4f", key="d_m_v_final")
 
-    # --- OBLICZENIA WG PDF (STRONY 11-13) ---
+    # --- OBLICZENIA WG PDF ---
     
-    # 1. Ng0 dla fali (Barrell & Sears) [cite: 180]
+    # 1. Ng0 (Barrell & Sears) [cite: 180]
     L_um = f_wave / 1000.0
     ng0_calc = 287.6155 + (4.8866 / L_um**2) + (0.0680 / L_um**4)
     
-    # 2. Prężność pary nasyconej E_w' dla tm 
-    # Wzór z PDF: 6.1078 * e^(...)
+    # 2. Prężność pary nasyconej E_w' wg PDF [cite: 206]
     E_s = 6.1078 * np.exp((17.269 * t_m) / (237.30 + t_m))
     
-    # 3. Aktualna prężność pary wodnej e [cite: 201]
+    # 3. Aktualna prężność pary e [cite: 201]
     e_vapor = E_s - 0.000662 * p_hpa * (t_s - t_m)
     
-    # 4. Wyznaczenie Ng (warunki rzeczywiste) 
-    # Wzór z PDF: Ng = Ng0 * 0.269578 * p/T - 11.27 * e/T
+    # 4. Refrakcyjność rzeczywista Ng [cite: 187]
     T_kelvin = t_s + 273.15
     ng_real = (ng0_calc * 0.269578 * p_hpa / T_kelvin) - (11.27 * e_vapor / T_kelvin)
     
-    # 5. Wyznaczenie Ngs (warunki standardowe instrumentu) [cite: 235]
-    # Zgodnie z PDF str. 12 i 13: t=15°C, p=1013.25 hPa, e=0
+    # 5. Refrakcyjność standardowa Ng_std (dla 15°C, 1013.25 hPa) 
+    # Wartość 11.27 * e / T dla standardowego e=10.87 hPa 
     T_std_k = 15.0 + 273.15
-    # Dla warunków standardowych przyjmujemy powietrze suche (e=0) [cite: 211]
-    ng_std = (ng0_calc * 0.269578 * 1013.25 / T_std_k)
+    ng_std = (ng0_calc * 0.269578 * 1013.25 / T_std_k) - (11.27 * 10.87 / T_std_k)
     
-    # 6. Poprawka Delta D w ppm [cite: 225, 239]
-    # AD = Ngs - Ngr
+    # 6. Poprawka Delta D [cite: 225, 239]
     K_ppm = ng_std - ng_real
 
     delta_d = (K_ppm / 1_000_000) * d_mierzona
     d_koncowa = d_mierzona + delta_d
 
-    # --- WYŚWIETLANIE WYNIKÓW ---
+    # --- WYŚWIETLANIE ---
     st.divider()
     res1, res2, res3 = st.columns(3)
     res1.metric("Poprawka [mm/km]", f"{K_ppm:.2f}")
     res2.metric("Poprawka do d [m]", f"{delta_d:.4f}")
     res3.metric("Długość poprawiona [m]", f"{d_koncowa:.4f}")
 
-    # --- TABELA I IMPORT PLIKU ---
+    # --- TABELA IMPORTU ---
     st.divider()
     st.subheader("Import danych i zestawienie zbiorcze")
-    uploaded_file = st.file_uploader("Wgraj plik .txt (lp; ts; tm; p; d)", type=['txt'], key="at_file_v7")
+    uploaded_file = st.file_uploader("Wgraj plik .txt (lp; ts; tm; p; d)", type=['txt'], key="at_file_v_final")
     
     if uploaded_file:
         try:
-            df_at = pd.read_csv(uploaded_file, sep=';', decimal=',', header=None, 
-                                names=['lp', 'ts', 'tm', 'p', 'd', 'extra'])
+            df_at = pd.read_csv(uploaded_file, sep=';', decimal=',', header=None, names=['lp', 'ts', 'tm', 'p', 'd', 'extra'])
             df_at = df_at.dropna(axis=1, how='all')
             
-            def przelicz_wiersz(row):
+            def process_row(row):
                 ts_r, tm_r, p_r, d_r = row['ts'], row['tm'], row['p'], row['d']
                 Tr_k = ts_r + 273.15
                 Es_r = 6.1078 * np.exp((17.269 * tm_r) / (237.30 + tm_r))
                 er = Es_r - 0.000662 * p_r * (ts_r - tm_r)
-                # Obliczenie Ng rzeczywistego dla wiersza 
                 ngr = (ng0_calc * 0.269578 * p_r / Tr_k) - (11.27 * er / Tr_k)
-                Kr = ng_std - ngr # Poprawka [cite: 239]
+                Kr = ng_std - ngr
                 corr = (Kr / 1e6) * d_r
                 return pd.Series([round(Kr, 2), round(corr, 4), round(d_r + corr, 4)])
 
-            df_at[['Poprawka [mm/km]', 'Poprawka [m]', 'Długość popr. [m]']] = df_at.apply(przelicz_wiersz, axis=1)
+            df_at[['Poprawka [mm/km]', 'Poprawka [m]', 'Długość popr. [m]']] = df_at.apply(process_row, axis=1)
             st.dataframe(df_at.drop(columns=['extra'], errors='ignore'), use_container_width=True)
         except Exception as e:
-            st.error(f"Błąd pliku: {e}")
+            st.error(f"Błąd: {e}")
+            
 
 
 
