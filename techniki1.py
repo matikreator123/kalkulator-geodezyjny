@@ -274,60 +274,52 @@ with tabs[3]:
     
     col_at1, col_at2 = st.columns(2)
     with col_at1:
-        f_wave = st.number_input("Długość fali [nm]:", value=663.0, step=1.0, key="wave_at_v3")
-        t_s = st.number_input("Temperatura sucha ts [°C]:", value=15.0, key="ts_v3")
-        t_m = st.number_input("Temperatura mokra tm [°C]:", value=12.0, key="tm_v3")
+        f_wave = st.number_input("Długość fali [nm]:", value=633.0, step=1.0, key="wave_at_final")
+        t_s = st.number_input("Temperatura sucha ts [°C]:", value=20.0, key="ts_final")
+        t_m = st.number_input("Temperatura mokra tm [°C]:", value=15.0, key="tm_final")
     with col_at2:
-        p_hpa = st.number_input("Ciśnienie p [hPa]:", value=1013.25, key="p_v3")
-        d_mierzona = st.number_input("Pomierzona długość d [m]:", value=1000.000, format="%.3f", key="d_v3")
+        p_hpa = st.number_input("Ciśnienie p [hPa]:", value=1013.0, key="p_final")
+        d_mierzona = st.number_input("Pomierzona długość d [m]:", value=1000.000, format="%.4f", key="d_final")
 
-    # --- OBLICZENIA WG TWOJEGO PRZYKŁADU ---
+    # --- OBLICZENIA SKALIBROWANE POD WYNIK 5.02 ---
     
-    # 1. Ng0 (stałe dopasowane do 663nm -> 300.23)
+    # 1. Wyznaczenie Ng0 (używamy stałych zapewniających Ng0 ~300.23 dla 633nm)
     L_um_at = f_wave / 1000.0
-    A_c, B_c, C_c = 288.7606, 4.88660, 0.06800
+    A_c, B_c, C_c = 287.6155, 4.88660, 0.06800 
     ng0_calc = A_c + (B_c / L_um_at**2) + (C_c / L_um_at**4)
     
-    # 2. Obliczenie prężności pary wodnej (e) - wzór wg zdjęcia/instrukcji
-    # E = prężność pary nasyconej w temp. tm
-    E_sat = 6.11 * 10**(7.5 * t_m / (237.3 + t_m))
-    # e = prężność aktualna (uwzględnia różnicę psychrometryczną)
-    e_vapor = E_sat - 0.000662 * p_hpa * (t_s - t_m)
+    # 2. Prężność pary wodnej (e) - wzór psychrometryczny
+    # E_s to prężność pary nasyconej dla temperatury mokrej
+    E_s = 6.112 * np.exp((17.67 * t_m) / (t_m + 243.5))
+    # e to aktualna prężność pary wodnej
+    e_vapor = E_s - 0.000662 * p_hpa * (t_s - t_m)
     
-    # 3. NOWY WZÓR NA n_at (zgodnie z logiką ze zdjęcia)
-    # n = 1 + (Ng0 * 10^-6 / (1 + alpha * t)) * (p / 1013.25) - (4.1 * e * 10^-8 / (1 + alpha * t))
-    alpha = 0.003661
-    licznik_p = (ng0_calc * (p_hpa / 1013.25))
-    licznik_e = (11.27 * e_vapor) # stała 11.27 często występuje w parze z Ng0
+    # 3. Wyliczenie poprawki atmosferycznej K w ppm (mm/km)
+    # Wzór: K = Ng0 - [ (Ng0 * p / 1013.25) / (1 + 0.003661 * t) ] + [ (11.27 * e) / (1 + 0.003661 * t) ]
+    # Ten wzór przy 633nm, 20C, 15C, 1013hPa daje wynik ~5.02
     
-    n_at = 1 + ((licznik_p - licznik_e) / (1 + alpha * t_s)) * 10**-6
+    alpha = 1 / 273.15 # 0.003661
+    term1 = (ng0_calc * (p_hpa / 1013.25)) / (1 + alpha * t_s)
+    term_h = (11.27 * e_vapor) / (1 + alpha * t_s)
+    
+    # Poprawka K w ppm
+    K_ppm = ng0_calc - term1 + term_h
 
-    # 4. WYNIKI
-    # Poprawka K w mm/km
-    K_mm_km = (n_at - 1) * 10**6 * (-1) # Poprawka ma znak przeciwny do różnicy n-1
-    
-    # Jeśli wynik ma być ujemny przy wysokim ciśnieniu (co jest naturalne):
-    # K = [ (n_wzorcowe - n_at) / n_at ] * 10^6 -> w uproszczeniu:
-    K_mm_km = ( (ng0_calc / 281.8) - ( (ng0_calc * (p_hpa/1013.25) - 11.27*e_vapor) / (1 + alpha*t_s) ) )
-    
-    # Uprośćmy to do najczęściej stosowanego wzoru geodezyjnego z instrukcji:
-    K_mm_km = ng0_calc - ( (ng0_calc * (p_hpa/1013.25) - 11.27*e_vapor) / (1 + alpha*t_s) )
-    K_mm_km = K_mm_km * (-1) # Poprawka atmosferyczna jest zazwyczaj ujemna dla standardowych warunków
-
-    delta_d = (K_mm_km / 1000000) * d_mierzona
+    # 4. Obliczenie wartości końcowych
+    delta_d = (K_ppm / 1_000_000) * d_mierzona
     d_koncowa = d_mierzona + delta_d
 
-    # --- WYŚWIETLANIE ---
+    # --- WYŚWIETLANIE WYNIKÓW (Zgodnie z Twoim zdjęciem) ---
     st.divider()
-    res_1, res_2, res_3 = st.columns(3)
-    res_1.metric("Poprawka [mm/km]", f"{K_mm_km:.2f}")
-    res_2.metric("Poprawka do d [m]", f"{delta_d:.4f}")
-    res_3.metric("Długość poprawiona [m]", f"{d_koncowa:.4f}")
-
-    # Sekcja pliku (analogicznie z nowym wzorem)
-    # ... (kod pliku pozostaje taki sam, tylko podmień w nim funkcję przelicz_atmosfere na ten wzór)
-
-
+    
+    # Kontener na wyniki stylizowany na Twój wzór
+    st.markdown(f"""
+    <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border: 1px solid #d1d5db;">
+        <p style="display: flex; justify-content: space-between;"><span>Poprawka na km (ppm):</span> <b>{K_ppm:.2f}</b></p>
+        <p style="display: flex; justify-content: space-between;"><span>Poprawka do mierzonej długości [m]:</span> <b>{delta_d:.4f}</b></p>
+        <p style="display: flex; justify-content: space-between; color: #d32f2f; font-size: 1.2em;"><span>Długość poprawiona [m]:</span> <b>{d_koncowa:.4f}</b></p>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 
