@@ -211,7 +211,6 @@ with tabs[2]:
     L_u = f_user / 1000.0
     # Zaktualizowany wzór, aby dla 633nm wyszło ok. 300.23
    # Linia 212: upewnij się, że tu jest f_user
-    f_user = st.number_input("Wpisz długość fali [nm]", value=633.0)
 
     # Linia 213: tutaj też zmień na f_user
     L_um = f_user / 1000.0
