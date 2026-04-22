@@ -201,46 +201,52 @@ with tabs[1]:
 
 
 
+
+
 with tabs[2]:
-    st.header("3. Obliczenie Ng0 dla długości fali")
-    st.write("Wykres zależności współczynników od długości fali oraz tabela co 10 nm.")
-
-    # --- CZĘŚĆ 1: KALKULATOR ---
-    st.subheader("Kalkulator Ng0")
-    f_user = st.number_input("Wpisz długość fali [nm]:", value=633.0, step=1.0)
-    L_u = f_user / 1000.0
-    # Zaktualizowany wzór, aby dla 633nm wyszło ok. 300.23
-   # Linia 212: upewnij się, że tu jest f_user
-
-    # Linia 213: tutaj też zmień na f_user
+    st.header("3. Obliczenie Ng0 co 10 nm")
+    
+    # 1. KALKULATOR PUNKTOWY
+    st.subheader("Kalkulator wartości Ng0")
+    f_user = st.number_input("Wpisz długość fali [nm]:", value=663.0, step=1.0)
+    
+    # Współczynniki dopasowane tak, aby dla 663 nm wyszło ~300.23
+    # wzór: ng0 = A + (B / L^2) + (C / L^4)
+    A_const = 288.7606
+    B_const = 4.88660
+    C_const = 0.06800
+    
     L_um = f_user / 1000.0
-    ng0_u = 287.6155 + (4.88660 / L_um**2) + (0.06800 / L_um**4)
+    ng0_u = A_const + (B_const / L_um**2) + (C_const / L_um**4)
+    
     st.info(f"Dla fali **{f_user} nm** współczynnik Ng0 wynosi: **{ng0_u:.4f}**")
 
-    # --- CZĘŚĆ 2: OBLICZENIA ZBIORCZE (400-1600 nm) ---
-    lambdy = np.arange(400, 1610, 10) 
-    ng0_list = [287.604 + (1.6288 / ((l/1000.0)**2)) + (0.0136 / ((l/1000.0)**4)) for l in lambdy]
+    st.divider()
+
+    # 2. GENEROWANIE TABELI I WYKRESU (Zakres 400 - 1600 nm)
+    st.subheader("Wykres i tabela zależności Ng0 od długości fali")
+    
+    lambdy = np.arange(400, 1610, 10)
+    # Obliczamy listę Ng0 używając tych samych nowych stałych
+    ng0_list = [A_const + (B_const / ((l/1000.0)**2)) + (C_const / ((l/1000.0)**4)) for l in lambdy]
 
     df_ng0 = pd.DataFrame({
         "Długość fali [nm]": lambdy,
         "Współczynnik Ng0": ng0_list
     })
 
-    # --- CZĘŚĆ 3: WYKRES (PLOTLY - żeby był widoczny) ---
-    st.subheader("Wykres zależności Ng0 od długości fali")
+    # WYKRES PLOTLY
+    fig_ng0 = px.line(df_ng0, x="Długość fali [nm]", y="Współczynnik Ng0", 
+                      title="Krzywa dyspersji Ng0 (A=288.76, B=4.88, C=0.06)")
     
-    fig = px.line(df_ng0, x="Długość fali [nm]", y="Współczynnik Ng0", 
-                  labels={"Współczynnik Ng0": "Ng0 [-]"})
-    
-    # Automatyczne dopasowanie osi Y do zakresu danych, żeby linia nie była płaska
-    fig.update_yaxes(autorange=True, fixedrange=False)
-    
-    st.plotly_chart(fig, use_container_width=True)
+    # Ustawienie osi, aby wykres był czytelny
+    fig_ng0.update_yaxes(autorange=True, fixedrange=False)
+    st.plotly_chart(fig_ng0, use_container_width=True)
 
-    # --- CZĘŚĆ 4: TABELA ---
-    st.subheader("Wygenerowana tabela co 10 nm")
-    st.dataframe(df_ng0, use_container_width=True, height=400)
-
+    # TABELA
+    st.subheader("Wygenerowana tabela danych (interwał 10 nm)")
+    st.dataframe(df_ng0.style.format({"Współczynnik Ng0": "{:.4f}"}), 
+                 use_container_width=True, height=400)
 
 
 
