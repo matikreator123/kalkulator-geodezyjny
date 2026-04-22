@@ -365,46 +365,47 @@ with tabs[3]:
 
 
 
-
-
 with tabs[4]:
     st.header("5. Różnica między łukiem a cięciwą")
     
-    # 1. SUWAK NA SAMEJ GÓRZE (zgodnie z prośbą)
+    # 1. SUWAK NA SAMEJ GÓRZE
     st.subheader("Szybki kalkulator")
     R_earth = 6371.0  # promień Ziemi w km
-    s_user = st.slider("Wybierz odległość [km]", 1, 100, 14, key="slider_arc")
+    s_user = st.slider("Wybierz odległość [km]", 1, 100, 40, key="slider_arc")
     
-    # Obliczenie punktowe
+    # Obliczenie punktowe z Twoim nowym wzorem (dzielenie przez 24 * 64 * R^2)
+    # Wynik w mm
     diff_user = ((s_user**3) / (24 * 64 * R_earth**2)) * 1000000
     st.info(f"Dla odległości **{s_user} km**, różnica łuk-cięciwa wynosi ok. **{diff_user:.2f} mm**") 
 
     st.divider()
 
-    # 2. OBLICZENIA DLA CAŁEGO ZAKRESU (1-100 km)
+    # 2. OBLICZENIA DLA CAŁEGO ZAKRESU (1-100 km) - POPRAWIONA TABELA
     dist_range = np.arange(1, 101, 1)
-    # Pełny wzór dla precyzji wykresu: s - 2R*sin(s/2R)
-    diffs_mm = [(s - (2 * R_earth * math.sin(s / (2 * R_earth)))) * 1000000 for s in dist_range]
+    
+    # Używamy tego samego wzoru co w kalkulatorze dla pełnej spójności
+    diffs_mm = [((s**3) / (24 * 64 * R_earth**2)) * 1000000 for s in dist_range]
 
     df_arc = pd.DataFrame({
         "Odległość [km]": dist_range,
         "Różnica [mm]": diffs_mm
     })
 
-    # 3. WYKRES PLOTLY (Gwarantowana widoczność)
+    # 3. WYKRES PLOTLY
     st.subheader("Wykres zależności (1 - 100 km)")
-    import plotly.express as px # Upewnij się, że masz ten import na górze pliku!
+    # Import plotly.express as px powinien być na górze pliku
     
     fig_arc = px.line(df_arc, x="Odległość [km]", y="Różnica [mm]", 
-                      title="Przyrost różnicy łuk-cięciwa")
+                      title="Przyrost różnicy łuk-cięciwa (wzór z korektą 64)")
     
-    # Automatyczne dopasowanie osi, by krzywa była wyraźna
     fig_arc.update_yaxes(autorange=True, fixedrange=False)
     st.plotly_chart(fig_arc, use_container_width=True)
 
     # 4. TABELA WYNIKÓW
     st.subheader("Tabela wyników co 1 km") 
-    st.dataframe(df_arc.style.format({"Różnica [mm]": "{:.2f}"}), use_container_width=True, height=400)
+    st.dataframe(df_arc.style.format({"Różnica [mm]": "{:.4f}"}), use_container_width=True, height=400)
+
+
 
 
 
