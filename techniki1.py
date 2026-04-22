@@ -200,53 +200,46 @@ with tabs[1]:
 
 
 
-
-
-
 with tabs[2]:
     st.header("3. Obliczenie Ng0 co 10 nm")
     
     # 1. KALKULATOR PUNKTOWY
     st.subheader("Kalkulator wartości Ng0")
-    f_user = st.number_input("Wpisz długość fali [nm]:", value=663.0, step=1.0)
+    f_user = st.number_input("Wpisz długość fali [nm]:", value=633.0, step=1.0)
     
-    # Współczynniki dopasowane tak, aby dla 663 nm wyszło ~300.23
-    # wzór: ng0 = A + (B / L^2) + (C / L^4)
-    A_const = 288.7606
-    B_const = 4.88660
-    C_const = 0.06800
-    
+    # WZÓR ZGODNY ZE ZDJĘCIEM
+    # Uwaga: we wzorze lambda jest w mikrometrach, więc nm / 1000
     L_um = f_user / 1000.0
-    ng0_u = A_const + (B_const / L_um**2) + (C_const / L_um**4)
+    ng0_u = 287.6155 + (4.8866 / L_um**2) + (0.0680 / L_um**4)
     
     st.info(f"Dla fali **{f_user} nm** współczynnik Ng0 wynosi: **{ng0_u:.4f}**")
 
     st.divider()
 
-    # 2. GENEROWANIE TABELI I WYKRESU (Zakres 400 - 1600 nm)
+    # 2. GENEROWANIE TABELI I WYKRESU
     st.subheader("Wykres i tabela zależności Ng0 od długości fali")
     
     lambdy = np.arange(400, 1610, 10)
-    # Obliczamy listę Ng0 używając tych samych nowych stałych
-    ng0_list = [A_const + (B_const / ((l/1000.0)**2)) + (C_const / ((l/1000.0)**4)) for l in lambdy]
+    # Stosujemy identyczny wzór dla całej tabeli
+    ng0_list = [287.6155 + (4.8866 / ((l/1000.0)**2)) + (0.0680 / ((l/1000.0)**4)) for l in lambdy]
 
     df_ng0 = pd.DataFrame({
         "Długość fali [nm]": lambdy,
         "Współczynnik Ng0": ng0_list
     })
 
-    # WYKRES PLOTLY
+    # WYKRES
     fig_ng0 = px.line(df_ng0, x="Długość fali [nm]", y="Współczynnik Ng0", 
-                      title="Krzywa dyspersji Ng0 (A=288.76, B=4.88, C=0.06)")
+                      title="Krzywa dyspersji Ng0 (wg wzoru Barrela i Searsa)")
     
-    # Ustawienie osi, aby wykres był czytelny
     fig_ng0.update_yaxes(autorange=True, fixedrange=False)
     st.plotly_chart(fig_ng0, use_container_width=True)
 
     # TABELA
-    st.subheader("Wygenerowana tabela danych (interwał 10 nm)")
+    st.subheader("Wygenerowana tabela danych")
     st.dataframe(df_ng0.style.format({"Współczynnik Ng0": "{:.4f}"}), 
                  use_container_width=True, height=400)
+
 
 
 
