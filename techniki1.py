@@ -209,7 +209,9 @@ with tabs[2]:
     st.subheader("Kalkulator Ng0")
     f_user = st.number_input("Wpisz długość fali [nm]:", value=633.0, step=1.0)
     L_u = f_user / 1000.0
-    ng0_u = 287.604 + (1.6288 / (L_u**2)) + (0.0136 / (L_u**4))
+    # Zaktualizowany wzór, aby dla 633nm wyszło ok. 300.23
+L_um = f_u / 1000.0
+ng0_u = 287.6155 + (4.88660 / L_um**2) + (0.06800 / L_um**4)
     st.info(f"Dla fali **{f_user} nm** współczynnik Ng0 wynosi: **{ng0_u:.4f}**")
 
     # --- CZĘŚĆ 2: OBLICZENIA ZBIORCZE (400-1600 nm) ---
