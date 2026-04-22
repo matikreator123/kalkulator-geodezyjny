@@ -255,7 +255,6 @@ with tabs[2]:
 
 
 
-
 with tabs[3]:
     st.header("4. Poprawka atmosferyczna")
     
@@ -264,38 +263,37 @@ with tabs[3]:
     
     col_at1, col_at2 = st.columns(2)
     with col_at1:
-        f_wave = st.number_input("Długość fali [nm]:", value=633.0, step=1.0, key="f_wave_v4")
-        t_s = st.number_input("Temperatura sucha ts [°C]:", value=20.0, key="ts_v4")
-        t_m = st.number_input("Temperatura mokra tm [°C]:", value=15.0, key="tm_v4")
+        # Długość fali z Zakładki 3
+        f_wave = st.number_input("Długość fali [nm]:", value=633.0, step=1.0, key="f_wave_v5")
+        t_s = st.number_input("Temperatura sucha ts [°C]:", value=20.0, key="ts_v5")
+        t_m = st.number_input("Temperatura mokra tm [°C]:", value=15.0, key="tm_v5")
     with col_at2:
-        p_hpa = st.number_input("Ciśnienie p [hPa]:", value=1013.25, key="p_v4")
-        d_mierzona = st.number_input("Pomierzona długość d [m]:", value=1000.0000, format="%.4f", key="d_mierzona_v4")
+        p_hpa = st.number_input("Ciśnienie p [hPa]:", value=1013.25, key="p_v5")
+        d_mierzona = st.number_input("Pomierzona długość d [m]:", value=1000.0000, format="%.4f", key="d_m_v5")
 
-    # --- OBLICZENIA WG WZORU DAJĄCEGO WYNIK 5.02 ---
+    # --- OBLICZENIA WG PDF (STRONA 12-13) ---
     
-    # 1. Ng0 (bazujemy na Twojej stałej 300.23 dla 633nm)
+    # 1. Ng0 (Barrell & Sears - tak jak w Zakładce 3)
     L_um = f_wave / 1000.0
-    ng0_calc = 287.6155 + (4.88660 / L_um**2) + (0.06800 / L_um**4)
+    ng0_calc = 287.6155 + (4.8866 / L_um**2) + (0.0680 / L_um**4)
     
-    # 2. Prężność pary wodnej (e) - uproszczony wzór geodezyjny
-    # E_s dla tm
+    # 2. Prężność pary wodnej (e) wg wzoru psychrometrycznego z zajęć
+    # E_s = prężność pary nasyconej dla tm
     E_s = 6.11 * 10**(7.5 * t_m / (237.3 + t_m))
+    # e = aktualna prężność
     e_vapor = E_s - 0.000662 * p_hpa * (t_s - t_m)
     
-    # 3. KLUCZ DO WYNIKU 5.02: 
-    # n = 1 + ( (ng0 * 10^-6) / (1 + 0.00366 * t) ) * (p / 1013.25) - (4.1 * e * 10^-8) / (1 + 0.00366 * t)
-    # Wzór na poprawkę K (ppm):
+    # 3. Wyznaczenie n_at (współczynnik rzeczywisty)
+    # n = 1 + 10^-6 * [ (Ng0 * p / 1013.25) / (1 + 0.003661 * t) - (11.27 * e / (1 + 0.003661 * t)) ]
     alpha = 0.003661
-    term_p = (ng0_calc * (p_hpa / 1013.25)) / (1 + alpha * t_s)
-    term_e = (11.27 * e_vapor) / (1 + alpha * t_s)
+    n_at = 1 + ((ng0_calc * p_hpa / 1013.25) / (1 + alpha * t_s) - (11.27 * e_vapor) / (1 + alpha * t_s)) * 1e-6
     
-    # Wyliczenie n_at
-    n_at = 1 + (term_p - term_e) * 1e-6
+    # 4. Wartość wzorcowa n0 (dla t=15 C, p=1013.25 hPa)
+    n_0 = 1 + (ng0_calc / (1 + alpha * 15)) * 1e-6
     
-    # Obliczenie K_ppm tak, aby dla 20C wyszło 5.02 (odejmujemy od wartości przy 15C)
-    # Wartość n przy 15C i 1013.25hPa to punkt zerowy dalmierza
-    n_15 = 1 + (ng0_calc / (1 + alpha * 15)) * 1e-6
-    K_ppm = (n_15 - n_at) * 1e6
+    # 5. Poprawka Delta D w ppm (mm/km)
+    # Wzór z PDF: Delta D = D * (n0 - n) -> w ppm to (n0 - n) * 10^6
+    K_ppm = (n_0 - n_at) * 1e6
 
     delta_d = (K_ppm / 1_000_000) * d_mierzona
     d_koncowa = d_mierzona + delta_d
@@ -307,37 +305,31 @@ with tabs[3]:
     res2.metric("Poprawka do d [m]", f"{delta_d:.4f}")
     res3.metric("Długość poprawiona [m]", f"{d_koncowa:.4f}")
 
-    # --- SEKCJA 2: IMPORT Z PLIKU I TABELA ZBIORCZA ---
+    # --- SEKCJA 2: TABELA I IMPORT Z PLIKU ---
     st.divider()
-    st.subheader("Import danych i tabela zbiorcza")
-    st.info("Format pliku: lp; ts; tm; p; dlugosc")
+    st.subheader("Import danych i zestawienie zbiorcze")
     
-    uploaded_at = st.file_uploader("Wgraj plik tekstowy", type=['txt'], key="uploader_v4")
+    uploaded_file = st.file_uploader("Wgraj plik .txt (lp; ts; tm; p; d)", type=['txt'], key="at_file_v5")
     
-    if uploaded_at is not None:
+    if uploaded_file:
         try:
-            # Wczytanie z uwzględnieniem separatora i przecinka
-            df_at = pd.read_csv(uploaded_at, sep=';', decimal=',', header=None, 
+            df_at = pd.read_csv(uploaded_file, sep=';', decimal=',', header=None, 
                                 names=['lp', 'ts', 'tm', 'p', 'd', 'extra'])
             df_at = df_at.dropna(axis=1, how='all')
             
-            def calc_row_v4(row):
+            def przelicz_wiersz(row):
                 ts_r, tm_r, p_r, d_r = row['ts'], row['tm'], row['p'], row['d']
-                # e
+                # e_r
                 Es_r = 6.11 * 10**(7.5 * tm_r / (237.3 + tm_r))
                 e_r = Es_r - 0.000662 * p_r * (ts_r - tm_r)
-                # n_at
-                term_p_r = (ng0_calc * (p_r / 1013.25)) / (1 + alpha * ts_r)
-                term_e_r = (11.27 * e_r) / (1 + alpha * ts_r)
-                nat_r = 1 + (term_p_r - term_e_r) * 1e-6
-                # K
-                K_r = (n_15 - nat_r) * 1e6
-                corr_r = (K_r / 1_000_000) * d_r
-                return pd.Series([round(K_r, 2), round(corr_r, 4), round(d_r + corr_r, 4)])
+                # n_r
+                nr = 1 + ((ng0_calc * p_r / 1013.25) / (1 + alpha * ts_r) - (11.27 * e_r) / (1 + alpha * ts_r)) * 1e-6
+                # K_r
+                Kr = (n_0 - nr) * 1e6
+                corr = (Kr / 1e6) * d_r
+                return pd.Series([round(Kr, 2), round(corr, 4), round(d_r + corr, 4)])
 
-            df_at[['Poprawka [mm/km]', 'Poprawka [m]', 'Długość popr. [m]']] = df_at.apply(calc_row_v4, axis=1)
-            
-            # Wyświetlanie tabeli bez zbędnych kolumn
+            df_at[['Poprawka [mm/km]', 'Poprawka [m]', 'Długość popr. [m]']] = df_at.apply(przelicz_wiersz, axis=1)
             st.dataframe(df_at.drop(columns=['extra'], errors='ignore'), use_container_width=True)
             
         except Exception as e:
