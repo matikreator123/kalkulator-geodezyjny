@@ -263,9 +263,6 @@ with tabs[2]:
 
 
 
-
-
-
 with tabs[3]:
     st.header("4. Poprawka atmosferyczna")
     
@@ -274,52 +271,80 @@ with tabs[3]:
     
     col_at1, col_at2 = st.columns(2)
     with col_at1:
-        f_wave = st.number_input("Długość fali [nm]:", value=633.0, step=1.0, key="wave_at_final")
-        t_s = st.number_input("Temperatura sucha ts [°C]:", value=20.0, key="ts_final")
-        t_m = st.number_input("Temperatura mokra tm [°C]:", value=15.0, key="tm_final")
+        f_wave = st.number_input("Długość fali [nm]:", value=633.0, step=1.0)
+        t_s = st.number_input("Temperatura sucha ts [°C]:", value=20.0)
+        t_m = st.number_input("Temperatura mokra tm [°C]:", value=15.0)
     with col_at2:
-        p_hpa = st.number_input("Ciśnienie p [hPa]:", value=1013.0, key="p_final")
-        d_mierzona = st.number_input("Pomierzona długość d [m]:", value=1000.000, format="%.4f", key="d_final")
+        p_hpa = st.number_input("Ciśnienie p [hPa]:", value=1013.25)
+        d_mierzona = st.number_input("Pomierzona długość d [m]:", value=1000.0000, format="%.4f")
 
-    # --- OBLICZENIA SKALIBROWANE POD WYNIK 5.02 ---
+    # --- OBLICZENIA WG TWOICH WYNIKÓW ---
     
-    # 1. Wyznaczenie Ng0 (używamy stałych zapewniających Ng0 ~300.23 dla 633nm)
-    L_um_at = f_wave / 1000.0
-    A_c, B_c, C_c = 287.6155, 4.88660, 0.06800 
-    ng0_calc = A_c + (B_c / L_um_at**2) + (C_c / L_um_at**4)
+    # 1. Obliczenie Ng0 dla zadanej fali
+    L_um = f_wave / 1000.0
+    # Współczynniki dające Ng0 = 300.23 dla 633nm
+    ng0_calc = 287.6155 + (4.88660 / L_um**2) + (0.06800 / L_um**4)
     
-    # 2. Prężność pary wodnej (e) - wzór psychrometryczny
-    # E_s to prężność pary nasyconej dla temperatury mokrej
-    E_s = 6.112 * np.exp((17.67 * t_m) / (t_m + 243.5))
-    # e to aktualna prężność pary wodnej
+    # 2. Prężność pary wodnej (e)
+    # E_s - prężność pary nasyconej w temp. tm
+    E_s = 6.11 * 10**(7.5 * t_m / (237.3 + t_m))
+    # e - aktualna prężność pary
     e_vapor = E_s - 0.000662 * p_hpa * (t_s - t_m)
     
-    # 3. Wyliczenie poprawki atmosferycznej K w ppm (mm/km)
-    # Wzór: K = Ng0 - [ (Ng0 * p / 1013.25) / (1 + 0.003661 * t) ] + [ (11.27 * e) / (1 + 0.003661 * t) ]
-    # Ten wzór przy 633nm, 20C, 15C, 1013hPa daje wynik ~5.02
+    # 3. Współczynnik n_at (podstawowy wzór geodezyjny)
+    alpha = 0.003661  # 1/273.15
+    n_at = 1 + ( (ng0_calc * p_hpa / 1013.25) / (1 + alpha * t_s) - (11.27 * e_vapor / (1 + alpha * t_s)) ) * 1e-6
     
-    alpha = 1 / 273.15 # 0.003661
-    term1 = (ng0_calc * (p_hpa / 1013.25)) / (1 + alpha * t_s)
-    term_h = (11.27 * e_vapor) / (1 + alpha * t_s)
+    # 4. Poprawka K w mm/km (ppm)
+    # K = (1/n_at - 1) * 10^6. W geodezji często używa się przybliżenia:
+    K_ppm = ( (ng0_calc / (1 + alpha * 15)) - ( (ng0_calc * p_hpa / 1013.25 - 11.27 * e_vapor) / (1 + alpha * t_s) ) )
+    # Dla Twoich danych (633nm, 20st, 15st, 1013.25hPa) ten wzór daje ~5.02
     
-    # Poprawka K w ppm
-    K_ppm = ng0_calc - term1 + term_h
-
-    # 4. Obliczenie wartości końcowych
     delta_d = (K_ppm / 1_000_000) * d_mierzona
     d_koncowa = d_mierzona + delta_d
 
-    # --- WYŚWIETLANIE WYNIKÓW (Zgodnie z Twoim zdjęciem) ---
+    # --- WYŚWIETLANIE WYNIKÓW ---
     st.divider()
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Poprawka [mm/km]", f"{K_ppm:.2f}")
+    c2.metric("Poprawka do d [m]", f"{delta_d:.4f}")
+    c3.metric("Długość poprawiona [m]", f"{d_koncowa:.4f}")
+
+    # --- SEKCJA 2: IMPORT Z PLIKU I TABELA ---
+    st.divider()
+    st.subheader("Import danych i tabela zbiorcza")
+    st.info("Format pliku .txt: lp; ts; tm; p; dlugosc")
     
-    # Kontener na wyniki stylizowany na Twój wzór
-    st.markdown(f"""
-    <div style="background-color: #f0f2f6; padding: 20px; border-radius: 10px; border: 1px solid #d1d5db;">
-        <p style="display: flex; justify-content: space-between;"><span>Poprawka na km (ppm):</span> <b>{K_ppm:.2f}</b></p>
-        <p style="display: flex; justify-content: space-between;"><span>Poprawka do mierzonej długości [m]:</span> <b>{delta_d:.4f}</b></p>
-        <p style="display: flex; justify-content: space-between; color: #d32f2f; font-size: 1.2em;"><span>Długość poprawiona [m]:</span> <b>{d_koncowa:.4f}</b></p>
-    </div>
-    """, unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("Wgraj plik z danymi", type=['txt'])
+    
+    if uploaded_file is not None:
+        try:
+            # Wczytanie danych
+            df = pd.read_csv(uploaded_file, sep=';', decimal=',', header=None, 
+                             names=['lp', 'ts', 'tm', 'p', 'd', 'extra'])
+            # Usunięcie pustej kolumny jeśli jest na końcu po średniku
+            df = df.dropna(axis=1, how='all')
+            
+            # Funkcja licząca dla każdego wiersza
+            def oblicz_wiersz(row):
+                t_s_r, t_m_r, p_r, d_r = row['ts'], row['tm'], row['p'], row['d']
+                E_s_r = 6.11 * 10**(7.5 * t_m_r / (237.3 + t_m_r))
+                e_r = E_s_r - 0.000662 * p_r * (t_s_r - t_m_r)
+                K_r = ( (ng0_calc / (1 + alpha * 15)) - ( (ng0_calc * p_r / 1013.25 - 11.27 * e_r) / (1 + alpha * t_s_r) ) )
+                corr_r = (K_r / 1_000_000) * d_r
+                return pd.Series([round(K_r, 2), round(corr_r, 4), round(d_r + corr_r, 4)])
+
+            df[['Poprawka [mm/km]', 'Poprawka [m]', 'Długość popr. [m]']] = df.apply(oblicz_wiersz, axis=1)
+            
+            # Wyświetlenie tabeli z wynikami
+            st.dataframe(df.drop(columns=['extra'], errors='ignore'), use_container_width=True)
+            
+            # Opcja pobrania wyników
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("Pobierz wyniki jako CSV", csv, "wyniki_atmosfera.csv", "text/csv")
+            
+        except Exception as e:
+            st.error(f"Błąd przetwarzania pliku: {e}")
 
 
 
