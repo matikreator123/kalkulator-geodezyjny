@@ -358,7 +358,7 @@ with tabs[4]:
     s_user = st.slider("Wybierz odległość [km]", 1, 100, 14, key="slider_arc")
     
     # Obliczenie punktowe
-    diff_user = ((s_user**3) / (24 * R_earth**2)) * 1000000
+    diff_user = ((s_user**3) / (24 * 64 * R_earth**2)) * 1000000
     st.info(f"Dla odległości **{s_user} km**, różnica łuk-cięciwa wynosi ok. **{diff_user:.2f} mm**") 
 
     st.divider()
